@@ -118,8 +118,10 @@ export class SaveManager {
     const stats = {
       ...rawStats,
       biomesDiscovered: new Set(rawStats.biomesDiscovered),
-      // Migration: add surfaceReturns if loading an older save
-      surfaceReturns: (rawStats as unknown as Record<string, number>)['surfaceReturns'] ?? 0,
+      // Migration: add new stat fields for older saves
+      surfaceReturns:      (rawStats as unknown as Record<string, number>)['surfaceReturns']      ?? 0,
+      loreFragmentsFound:  (rawStats as unknown as Record<string, number>)['loreFragmentsFound']  ?? 0,
+      eventsTriggered:     (rawStats as unknown as Record<string, number>)['eventsTriggered']      ?? 0,
     };
 
     const p = data.player;
@@ -154,6 +156,15 @@ export class SaveManager {
       challengeModeUnlocked: data.secretFound,
       playTime: data.playTime,
       currentBiome: data.currentBiome ?? 'surface',
+      // New gameplay fields — defaults on load
+      activeEvents: [],
+      eventCooldown: 30,
+      digCombo: 0,
+      comboMultiplier: 1.0,
+      lastDigTime: 0,
+      hitFlashTile: null,
+      depthPressureAlpha: 0,
+      introComplete: true, // loaded save = already seen intro
     };
 
     return state;

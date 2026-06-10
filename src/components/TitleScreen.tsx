@@ -72,6 +72,7 @@ export default function TitleScreen({ hasSave, onNewGame, onContinue, onChalleng
             <div className={styles.ctrlGrid}>
               <span>Move</span>        <span>Arrow Keys / WASD</span>
               <span>Dig</span>         <span>Z / Space or click tile</span>
+              <span>Use Energy Cell</span><span>F</span>
               <span>Sell</span>        <span>E at surface</span>
               <span>Shop</span>        <span>B at surface</span>
               <span>Inventory</span>   <span>I</span>

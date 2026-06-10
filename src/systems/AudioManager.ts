@@ -192,6 +192,34 @@ export class AudioManager {
       this.tone({ type: 'triangle', freq: f, duration: 0.25, volume: 0.22, attack: 0.01 }), i * 90));
   }
 
+  discovery(): void {
+    // Arpeggio rising tone for lore/discovery
+    [440, 550, 660, 880, 1100].forEach((f, i) => setTimeout(() =>
+      this.tone({ type: 'sine', freq: f, duration: 0.2, volume: 0.16, attack: 0.02 }), i * 100));
+    setTimeout(() => this.noise(0.1, 0.08, 400), 450);
+  }
+
+  eventTrigger(kind: string): void {
+    const freqs: Record<string, number[]> = {
+      treasure_vault:      [523, 784, 1047, 1568],
+      crystal_bloom:       [440, 660, 880, 1320],
+      lost_cache:          [523, 659, 784],
+      energy_surge:        [880, 1100, 1320],
+      ore_vein_rich:       [330, 440, 550, 660],
+      fossil_discovery:    [220, 330, 440],
+      cave_echo:           [200, 260, 300],
+      ancient_inscription: [350, 440, 550, 700, 880],
+    };
+    const notes = freqs[kind] ?? [523, 659, 784];
+    notes.forEach((f, i) => setTimeout(() =>
+      this.tone({ type: 'triangle', freq: f, duration: 0.22, volume: 0.18, attack: 0.01 }), i * 80));
+  }
+
+  combo(level: number): void {
+    const freq = 400 + level * 40;
+    this.tone({ type: 'square', freq, endFreq: freq * 1.5, duration: 0.1, volume: 0.14 });
+  }
+
   biomeEnter(biomeId: string): void {
     const freqMap: Record<string, number> = {
       crystal_cavern: 330, fossil_zone: 220, lava_zone: 150, void_realm: 80, secret_chamber: 440,

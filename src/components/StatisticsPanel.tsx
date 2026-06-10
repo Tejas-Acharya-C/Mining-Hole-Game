@@ -39,6 +39,8 @@ export default function StatisticsPanel({ state, onClose }: Props) {
             <Stat label="Total Damage"      val={statistics.totalDamageDealt.toLocaleString()} />
             <Stat label="Treasures Found"   val={statistics.treasuresFound.toLocaleString()} />
             <Stat label="Artifacts"         val={statistics.artifactsCollected.toLocaleString()} />
+            <Stat label="Events Triggered"  val={statistics.eventsTriggered.toLocaleString()} />
+            <Stat label="Lore Collected"    val={`${statistics.loreFragmentsFound}/8`} />
           </Section>
 
           {/* Economy */}

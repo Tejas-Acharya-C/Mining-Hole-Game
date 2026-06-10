@@ -69,6 +69,38 @@ export interface OreEntry {
 
 export type SpecialFeature = 'cave' | 'lake' | 'vein' | 'chamber' | 'shaft' | 'fossil_bed';
 
+// ─── Dynamic Events ────────────────────────────────────────────────────────────
+
+export type EventKind =
+  | 'treasure_vault'    // buried chest cluster
+  | 'crystal_bloom'     // crystal patch spawns in wall
+  | 'lost_cache'        // coins + items scattered
+  | 'fossil_discovery'  // fossil bed with lore fragment
+  | 'energy_surge'      // nearby energy nodes refill energy
+  | 'ore_vein_rich'     // extra-dense ore streak nearby
+  | 'cave_echo'         // reveals a large nearby cave
+  | 'ancient_inscription'; // lore fragment + permanent bonus
+
+export interface ActiveEvent {
+  id: number;
+  kind: EventKind;
+  worldRow: number;
+  worldCol: number;
+  radius: number;
+  label: string;
+  description: string;
+  color: string;
+  lifeSeconds: number;  // 0 = permanent until triggered
+  triggered: boolean;
+}
+
+export interface LoreFragment {
+  id: string;
+  title: string;
+  text: string;
+  depth: number;
+}
+
 // ─── Items ─────────────────────────────────────────────────────────────────────
 
 export type ItemId =
@@ -223,6 +255,10 @@ export interface Statistics {
   runStartTime: number;
   /** Times the player has returned to the surface */
   surfaceReturns: number;
+  /** Lore fragments collected */
+  loreFragmentsFound: number;
+  /** Dynamic events triggered */
+  eventsTriggered: number;
 }
 
 // ─── Particles ─────────────────────────────────────────────────────────────────
@@ -321,7 +357,7 @@ export interface GameState {
   player: Player;
 
   // Chunk-based world
-  chunks: Map<string, Chunk>;   // key: `${cx},${cy}`
+  chunks: Map<string, Chunk>;
   seed: number;
   worldWidthChunks: number;
 
@@ -339,6 +375,24 @@ export interface GameState {
   playTime: number;
 
   currentBiome: BiomeId;
+
+  // Dynamic events
+  activeEvents: ActiveEvent[];
+  eventCooldown: number;       // seconds before next event can trigger
+
+  // Combo / streak system
+  digCombo: number;            // consecutive digs without moving
+  comboMultiplier: number;     // sell bonus from combo (1.0 = normal)
+  lastDigTime: number;         // timestamp
+
+  // Hit flash for juice
+  hitFlashTile: { row: number; col: number; life: number } | null;
+
+  // Depth pressure effect
+  depthPressureAlpha: number;  // 0..1 vignette intensity
+
+  // First-run intro done
+  introComplete: boolean;
 }
 
 // ─── Save format ───────────────────────────────────────────────────────────────
@@ -397,4 +451,7 @@ export interface SerializedStatistics {
   totalDamageDealt: number;
   runStartTime: number;
   surfaceReturns: number;
+  loreFragmentsFound: number;
+  eventsTriggered: number;
 }
+

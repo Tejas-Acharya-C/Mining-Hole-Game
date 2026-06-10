@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { GameState } from '../types';
 import { ACHIEVEMENT_DEFS } from '../data/achievements';
 import styles from './WinScreen.module.css';
@@ -8,35 +9,113 @@ interface Props {
   onChallenge: () => void;
 }
 
+// Animated canvas background for win screen
+function ArtifactCanvas() {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d')!;
+    let frame = 0;
+    let raf = 0;
+    const draw = () => {
+      frame++;
+      const w = canvas.width; const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+      // Pulsing rings
+      const cx = w / 2; const cy = h * 0.28;
+      for (let i = 0; i < 5; i++) {
+        const phase = (frame * 0.012 + i * 0.4) % 1;
+        const r = 30 + phase * 80;
+        const alpha = (1 - phase) * 0.25;
+        ctx.strokeStyle = `rgba(200,150,255,${alpha})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      // Floating particles
+      for (let i = 0; i < 20; i++) {
+        const t = (frame * 0.008 + i * 0.31) % 1;
+        const angle = i * 2.399 + frame * 0.01;
+        const dist = 20 + Math.sin(frame * 0.03 + i) * 15;
+        const x = cx + Math.cos(angle) * dist * (1 + t * 2);
+        const y = cy - t * 60 + Math.sin(frame * 0.05 + i * 0.7) * 5;
+        const alpha = (1 - t) * 0.6;
+        ctx.fillStyle = `rgba(220,180,255,${alpha})`;
+        ctx.beginPath();
+        ctx.arc(x, y, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      raf = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return <canvas ref={ref} width={400} height={120} className={styles.artifactCanvas} />;
+}
+
 export default function WinScreen({ state, onPlayAgain, onChallenge }: Props) {
-  const { player, achievements, playTime, statistics } = state;
-  const mins = Math.floor(playTime / 60);
-  const secs = Math.floor(playTime % 60);
+  const { player, achievements, statistics } = state;
+  const mins = Math.floor(state.playTime / 60);
+  const secs = Math.floor(state.playTime % 60);
   const unlocked = achievements.filter(a => a.unlocked).length;
   const total    = achievements.length;
   const points   = achievements
     .filter(a => a.unlocked)
     .reduce((sum, a) => sum + (ACHIEVEMENT_DEFS[a.id]?.points ?? 0), 0);
 
+  const grade =
+    state.playTime < 600  ? 'S' :
+    state.playTime < 1200 ? 'A' :
+    state.playTime < 2400 ? 'B' : 'C';
+
+  const gradeColor =
+    grade === 'S' ? '#ffd700' :
+    grade === 'A' ? '#22c55e' :
+    grade === 'B' ? '#60a5fa' : '#94a3b8';
+
+  const narrativeLines = [
+    'At the bottom of everything, you found it.',
+    'Not treasure. Not wealth.',
+    'A question, cast in metal that does not rust:',
+    '"Why did you dig so deep?"',
+  ];
+
   return (
     <div className={styles.root}>
       <div className={styles.panel}>
         <div className={styles.glow} aria-hidden />
-        <div className={styles.trophy}>🏆</div>
-        <h1 className={styles.title}>You Found It.</h1>
-        <p className={styles.subtitle}>
-          Deep beneath everything, something ancient was waiting.<br/>
-          You dug all the way down to discover it.
-        </p>
 
-        <div className={styles.stats}>
+        <ArtifactCanvas />
+
+        <div className={styles.gradeRow}>
+          <span className={styles.grade} style={{ color: gradeColor }}>{grade}</span>
+          <div className={styles.gradeInfo}>
+            <span className={styles.gradeLabel}>Completion Grade</span>
+            <span className={styles.gradeTime}>{mins}:{String(secs).padStart(2,'0')} play time</span>
+          </div>
+        </div>
+
+        <h1 className={styles.title}>The Answer</h1>
+
+        <div className={styles.narrative}>
+          {narrativeLines.map((line, i) => (
+            <p key={i} className={styles.narrativeLine}
+              style={{ animationDelay: `${i * 0.4}s` }}>
+              {line}
+            </p>
+          ))}
+        </div>
+
+        <div className={styles.statsGrid}>
           {[
-            { label: 'Max Depth', val: `${player.deepestDepth}m` },
-            { label: 'Blocks Dug', val: statistics.blocksDug.toLocaleString() },
-            { label: 'Money Earned', val: `$${statistics.moneyEarned.toLocaleString()}` },
-            { label: 'Play Time', val: `${mins}:${String(secs).padStart(2,'0')}` },
-            { label: 'Achievements', val: `${unlocked}/${total}` },
-            { label: 'Score', val: `${points} pts` },
+            { label: 'Depth Reached',   val: `${player.deepestDepth}m` },
+            { label: 'Blocks Dug',      val: statistics.blocksDug.toLocaleString() },
+            { label: 'Money Earned',    val: `$${statistics.moneyEarned.toLocaleString()}` },
+            { label: 'Events Found',    val: statistics.eventsTriggered.toLocaleString() },
+            { label: 'Lore Collected',  val: `${statistics.loreFragmentsFound}/8` },
+            { label: 'Score',           val: `${points} pts` },
           ].map(s => (
             <div key={s.label} className={styles.statCard}>
               <span className={styles.statVal}>{s.val}</span>
@@ -46,23 +125,27 @@ export default function WinScreen({ state, onPlayAgain, onChallenge }: Props) {
         </div>
 
         <div className={styles.achSection}>
-          <h3 className={styles.achTitle}>Achievements Unlocked</h3>
+          <h3 className={styles.achTitle}>Achievements — {unlocked}/{total}</h3>
           <div className={styles.achGrid}>
             {achievements.map(ach => {
               const def = ACHIEVEMENT_DEFS[ach.id];
               if (!def || (def.hidden && !ach.unlocked)) return null;
               return (
-                <div
-                  key={ach.id}
+                <div key={ach.id}
                   className={`${styles.achItem} ${ach.unlocked ? styles.achOn : styles.achOff}`}
-                  title={def.description}
-                >
+                  title={def.description}>
                   {ach.unlocked ? '★' : '☆'} {def.label}
                 </div>
               );
             })}
           </div>
         </div>
+
+        {state.challengeModeUnlocked && (
+          <div className={styles.unlockedBanner}>
+            🔓 Challenge Modes Unlocked — New Game to try them
+          </div>
+        )}
 
         <div className={styles.buttons}>
           <button className={styles.btnAgain} onClick={onPlayAgain}>↺ New Game</button>

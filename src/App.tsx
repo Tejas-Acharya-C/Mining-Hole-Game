@@ -4,6 +4,7 @@ import {
   createInitialState, tryDig, tryMove, tickEnergy, tickScreenShake,
   tickFloatTexts, revealAround, sellInventory, buyUpgrade,
   unlockAchievement, useTeleport, playerDepth,
+  tickEvents, consumeEnergyCell,
 } from './systems/GameManager';
 import { SaveManager } from './systems/SaveManager';
 import { WorldManager } from './systems/WorldManager';
@@ -161,12 +162,29 @@ export default function App() {
         inp.keys.delete('KeyT');
         useTeleport(state, wm);
       }
+      if (inp.keys.has('KeyF')) {
+        inp.keys.delete('KeyF');
+        consumeEnergyCell(state, pmInstance);
+      }
 
       tickEnergy(state, dt);
       tickScreenShake(state, dt);
       tickFloatTexts(state, dt);
       pmInstance.tick(dt);
+      tickEvents(state, wm, pmInstance, dt);
       audioManager.updateDepthMusic(playerDepth(state.player));
+
+      // Decay hit flash
+      if (state.hitFlashTile) {
+        state.hitFlashTile.life -= dt * 8;
+        if (state.hitFlashTile.life <= 0) state.hitFlashTile = null;
+      }
+
+      // Reset combo when returning to surface
+      if (state.player.y <= SURFACE_TILE_ROW && state.digCombo > 0) {
+        state.digCombo = 0;
+        state.comboMultiplier = 1.0;
+      }
 
       // Auto-save every 30 s
       saveTimerRef.current += dt;

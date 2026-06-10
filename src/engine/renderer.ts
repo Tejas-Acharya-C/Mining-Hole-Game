@@ -69,6 +69,8 @@ export function render(
     sky.addColorStop(1, '#1a3a5c');
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, cw, surfacePxY);
+    // Stars in sky
+    drawStars(ctx, cw, Math.min(surfacePxY, ch), state.tick);
   }
 
   // Underground background — biome-tinted
@@ -79,16 +81,29 @@ export function render(
   // Depth fog vignette
   const depth = WorldManager.tileDepth(state.player.y);
   if (depth > 5) {
-    const fogAlpha = Math.min(0.3, depth / 200);
-    const fog = ctx.createRadialGradient(cw / 2, ch / 2, 0, cw / 2, ch / 2, Math.max(cw, ch));
+    const fogAlpha = Math.min(0.35, depth / 160);
+    const fog = ctx.createRadialGradient(cw / 2, ch / 2, cw * 0.2, cw / 2, ch / 2, Math.max(cw, ch) * 0.7);
     fog.addColorStop(0, 'transparent');
     fog.addColorStop(1, `rgba(0,0,0,${fogAlpha})`);
     ctx.fillStyle = fog;
     ctx.fillRect(0, 0, cw, ch);
   }
 
+  // Depth pressure vignette (separate intense ring at edges)
+  if (state.depthPressureAlpha > 0) {
+    const pv = ctx.createRadialGradient(cw / 2, ch / 2, Math.min(cw, ch) * 0.35,
+      cw / 2, ch / 2, Math.min(cw, ch) * 0.7);
+    pv.addColorStop(0, 'transparent');
+    pv.addColorStop(1, `rgba(0,0,30,${state.depthPressureAlpha * 0.6})`);
+    ctx.fillStyle = pv;
+    ctx.fillRect(0, 0, cw, ch);
+  }
+
   // Tiles
   drawTiles(ctx, state, camera, wm);
+
+  // Event markers (before lighting so they get dimmed too)
+  drawEventMarkers(ctx, state, camera);
 
   // Lighting pass
   drawLighting(ctx, state, camera, wm);
@@ -105,11 +120,17 @@ export function render(
   // Scanner overlay
   if (state.player.upgrades.scanner > 0) drawScannerOverlay(ctx, state, camera, wm);
 
+  // Combo indicator
+  if (state.digCombo >= 5) drawComboIndicator(ctx, state, cw, ch);
+
+  // Depth milestone flash
+  drawDepthMilestoneEffect(ctx, state, cw, ch);
+
   // FPS counter
   if (state.settings.showFPS && fps !== undefined) {
     ctx.fillStyle = '#aaaaaa';
     ctx.font = '11px monospace';
-    ctx.fillText(`${fps} fps | ${pm.activeCount} particles`, 8, 16);
+    ctx.fillText(`${fps} fps | ${pm.activeCount} particles | depth:${depth}`, 8, 16);
   }
 
   if (camera.shakeX !== 0 || camera.shakeY !== 0) ctx.restore();
@@ -117,7 +138,7 @@ export function render(
 
 // ── Tile rendering ────────────────────────────────────────────────────────────
 
-function drawTiles(ctx: CanvasRenderingContext2D, _state: GameState, cam: Camera, wm: WorldManager): void {
+function drawTiles(ctx: CanvasRenderingContext2D, state: GameState, cam: Camera, wm: WorldManager): void {
   const startCol = Math.max(0, Math.floor(cam.x / TILE_SIZE));
   const endCol   = Math.min(WORLD_WIDTH_CHUNKS * CHUNK_SIZE - 1, Math.ceil((cam.x + cam.width) / TILE_SIZE));
   const startRow = Math.max(0, Math.floor(cam.y / TILE_SIZE));
@@ -185,6 +206,14 @@ function drawTiles(ctx: CanvasRenderingContext2D, _state: GameState, cam: Camera
       if (tile.glowing || tile.kind === 'crystal' || tile.kind === 'void_stone') {
         const pulse = Math.sin(now / 600) * 0.08 + 0.06;
         ctx.fillStyle = `rgba(150,50,255,${pulse})`;
+        ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
+      }
+
+      // Hit flash — white burst on recently-hit tile
+      if (state.hitFlashTile &&
+          state.hitFlashTile.row === row && state.hitFlashTile.col === col &&
+          state.hitFlashTile.life > 0) {
+        ctx.fillStyle = `rgba(255,255,255,${state.hitFlashTile.life * 0.55})`;
         ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
       }
     }
@@ -492,8 +521,116 @@ function drawScannerOverlay(ctx: CanvasRenderingContext2D, state: GameState, cam
   }
 }
 
-// ── Utilities ─────────────────────────────────────────────────────────────────
+// ── Stars in sky ──────────────────────────────────────────────────────────────
 
+// Pre-baked star positions (consistent per session)
+const STAR_POSITIONS: Array<[number, number, number]> = Array.from({ length: 60 }, (_, i) => {
+  const s = Math.sin(i * 1732.15) * 0.5 + 0.5;
+  const t = Math.cos(i * 2431.77) * 0.5 + 0.5;
+  return [s, t, 0.4 + Math.sin(i * 983.3) * 0.35];
+});
+
+function drawStars(ctx: CanvasRenderingContext2D, cw: number, skyH: number, tick: number): void {
+  if (skyH < 4) return;
+  for (const [sx, sy, brightness] of STAR_POSITIONS) {
+    const x = sx * cw;
+    const y = sy * skyH;
+    const twinkle = Math.sin(tick * 0.05 + sx * 10) * 0.2 + brightness;
+    ctx.fillStyle = `rgba(255,255,255,${Math.max(0, twinkle)})`;
+    ctx.fillRect(x, y, 1.5, 1.5);
+  }
+}
+
+// ── Event markers ─────────────────────────────────────────────────────────────
+
+function drawEventMarkers(ctx: CanvasRenderingContext2D, state: GameState, cam: Camera): void {
+  for (const ev of state.activeEvents) {
+    if (ev.triggered) continue;
+    const sx = ev.worldCol * TILE_SIZE + TILE_SIZE / 2 - cam.x;
+    const sy = ev.worldRow * TILE_SIZE + TILE_SIZE / 2 - cam.y;
+    // Skip if offscreen
+    if (sx < -TILE_SIZE || sx > cam.width + TILE_SIZE || sy < -TILE_SIZE || sy > cam.height + TILE_SIZE) continue;
+
+    const pulse = Math.sin(Date.now() / 350) * 0.3 + 0.5;
+    const r = TILE_SIZE * (1.2 + pulse * 0.4);
+
+    // Pulsing glow ring
+    const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, r);
+    grad.addColorStop(0, `${ev.color}66`);
+    grad.addColorStop(0.5, `${ev.color}22`);
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Exclamation marker
+    ctx.fillStyle = ev.color;
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.globalAlpha = 0.8 + pulse * 0.2;
+    ctx.fillText('!', sx, sy - TILE_SIZE);
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+  }
+}
+
+// ── Combo indicator ───────────────────────────────────────────────────────────
+
+function drawComboIndicator(ctx: CanvasRenderingContext2D, state: GameState, cw: number, _ch: number): void {
+  const combo = state.digCombo;
+  if (combo < 5) return;
+  const tier = combo >= 20 ? 3 : combo >= 15 ? 2 : combo >= 10 ? 1 : 0;
+  const colors = ['#fbbf24', '#f97316', '#ef4444', '#ff69b4'];
+  const color  = colors[tier];
+
+  const pulse = Math.sin(Date.now() / 200) * 0.15 + 0.85;
+  ctx.save();
+  ctx.globalAlpha = pulse;
+  ctx.font = `bold ${14 + tier * 2}px sans-serif`;
+  ctx.textAlign = 'right';
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillText(`COMBO ×${combo}`, cw - 11, 45);
+  ctx.fillStyle = color;
+  ctx.fillText(`COMBO ×${combo}`, cw - 12, 44);
+  if (state.comboMultiplier > 1) {
+    ctx.font = '11px sans-serif';
+    ctx.fillStyle = '#86efac';
+    ctx.fillText(`+${Math.round((state.comboMultiplier - 1) * 100)}% sell`, cw - 12, 60);
+  }
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'left';
+  ctx.restore();
+}
+
+// ── Depth milestone flash ─────────────────────────────────────────────────────
+
+const DEPTH_MILESTONES = new Set([10, 25, 50, 100, 200]);
+let _lastMilestoneDepth = -1;
+let _milestoneFlash = 0;
+
+function drawDepthMilestoneEffect(ctx: CanvasRenderingContext2D, state: GameState, cw: number, ch: number): void {
+  const depth = WorldManager.tileDepth(state.player.y);
+  if (DEPTH_MILESTONES.has(depth) && depth !== _lastMilestoneDepth) {
+    _lastMilestoneDepth = depth;
+    _milestoneFlash = 1.0;
+  }
+  if (_milestoneFlash > 0) {
+    ctx.fillStyle = `rgba(255,255,200,${_milestoneFlash * 0.18})`;
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.font = 'bold 22px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = `rgba(255,255,180,${_milestoneFlash})`;
+    ctx.fillText(`Depth ${depth}m`, cw / 2, ch / 2 - 40);
+    ctx.textAlign = 'left';
+    _milestoneFlash -= 0.016; // approx 60fps decay
+    if (_milestoneFlash < 0) _milestoneFlash = 0;
+  }
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
   ctx.beginPath();
   ctx.moveTo(x + r, y);

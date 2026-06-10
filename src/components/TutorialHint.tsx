@@ -27,8 +27,12 @@ export default function TutorialHint({ state }: Props) {
     hint = '⚠  Stone layers ahead need a better shovel — upgrade at the shop.';
   } else if (depth >= 40 && player.upgrades.lantern === 0) {
     hint = '🔦  Getting dark? Buy a Lantern upgrade to see further.';
-  } else if (state.quests.filter(q => q.status === 'active').length > 0 && state.statistics.blocksDug < 50) {
-    hint = '📋  Press Q to view active quests and earn bonus rewards.';
+  } else if (state.activeEvents.length > 0 && state.statistics.blocksDug < 100) {
+    hint = '⚠  Something unusual is nearby — explore the flashing marker!';
+  } else if (player.inventory.some(s => s.itemId === 'energy_cell') && state.statistics.blocksDug < 50) {
+    hint = '🔋  You have Energy Cells — press F to consume one and restore energy.';
+  } else if (state.digCombo >= 5 && state.statistics.blocksDug < 80) {
+    hint = '🔥  Keep digging without stopping — combo boosts your sell prices!';
   } else {
     return null;
   }

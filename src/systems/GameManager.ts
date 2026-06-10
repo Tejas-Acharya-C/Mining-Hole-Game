@@ -1,6 +1,6 @@
 import type {
   GameState, Player, UpgradeId, ItemId, AchievementId,
-  QuestId, GameMode, BiomeId,
+  QuestId, GameMode, BiomeId, ActiveEvent,
 } from '../types';
 import { CHUNK_SIZE } from '../types';
 import { ITEM_DEFS, RARITY_ORDER } from '../data/items';
@@ -11,7 +11,8 @@ import { ACHIEVEMENT_DEFS } from '../data/achievements';
 import { QUEST_DEFS, QUEST_ORDER } from '../data/quests';
 import { TILE_ENERGY_COST, TILE_DROPS, TILE_COLORS,
   SURFACE_TILE_ROW, TILE_SIZE, WORLD_WIDTH_CHUNKS } from '../data/tiles';
-import { WorldManager } from './WorldManager';
+import { pickEvent, getLoreForDepth } from '../data/events';
+import { makePrng, WorldManager } from './WorldManager';
 import { audioManager } from './AudioManager';
 import type { ParticleManager } from './ParticleManager';
 import { defaultSettings } from '../data/defaults';
@@ -77,12 +78,22 @@ export function createInitialState(seed?: number, mode: GameMode = 'normal'): Ga
       questsCompleted: 0, criticalHits: 0, totalDamageDealt: 0,
       runStartTime: Date.now(),
       surfaceReturns: 0,
+      loreFragmentsFound: 0,
+      eventsTriggered: 0,
     },
     settings: defaultSettings(),
     secretFound: false, tutorialStep: 0,
     challengeModeUnlocked: false,
     playTime: 0,
     currentBiome: 'surface',
+    activeEvents: [],
+    eventCooldown: 20,      // 20s before first event
+    digCombo: 0,
+    comboMultiplier: 1.0,
+    lastDigTime: 0,
+    hitFlashTile: null,
+    depthPressureAlpha: 0,
+    introComplete: false,
   };
 
   // Pre-generate visible chunks
@@ -200,10 +211,32 @@ export function tryDig(
     breakTile(state, wm, pm, targetRow, targetCol, tile.kind, dmg);
   }
 
+  // Combo tracking
+  const now = Date.now();
+  if (now - state.lastDigTime < 600) {
+    state.digCombo = Math.min(state.digCombo + 1, 20);
+    state.comboMultiplier = 1 + Math.floor(state.digCombo / 5) * 0.1;
+    if (state.digCombo === 5 || state.digCombo === 10 || state.digCombo === 15 || state.digCombo === 20) {
+      spawnFloat(state, targetCol * TILE_SIZE + TILE_SIZE / 2, targetRow * TILE_SIZE - TILE_SIZE * 2,
+        `COMBO ×${state.digCombo}!`, state.digCombo >= 15 ? '#ff69b4' : '#fbbf24', 1.3);
+    }
+  } else {
+    state.digCombo = 1;
+    state.comboMultiplier = 1.0;
+  }
+  state.lastDigTime = now;
+
+  // Hit flash
+  state.hitFlashTile = { row: targetRow, col: targetCol, life: 1.0 };
+
   state.statistics.blocksDug++;
   updateQuestProgress(state, { type: 'dig', count: 1 });
   unlockAchievement(state, 'first_dig');
   checkDigAchievements(state);
+
+  // Depth pressure effect
+  const depth = WorldManager.tileDepth(state.player.y);
+  state.depthPressureAlpha = Math.min(0.5, depth / 200);
 
   return { success: true };
 }
@@ -421,11 +454,12 @@ export function sellInventory(state: GameState): number {
       for (const b of player.permanentBonuses) {
         if (b.type === 'sell_multiplier') value = Math.round(value * (1 + b.value));
       }
+      // Combo bonus
+      if (state.comboMultiplier > 1) value = Math.round(value * state.comboMultiplier);
       // Mode: randomized economy
       if (state.mode === 'randomized_economy') {
         value = Math.round(value * (0.5 + Math.random() * 1.5));
       }
-      // Mode: double treasure — already baked into spawning, but double sell
       if (state.mode === 'double_treasure') value *= 2;
       total += value;
     }
@@ -535,7 +569,231 @@ export function tickFloatTexts(state: GameState, dt: number): void {
   if (hasExpired) state.floatTexts = state.floatTexts.filter(f => f.life > 0);
 }
 
-// ── Achievements ──────────────────────────────────────────────────────────────
+// ── Dynamic event tick ────────────────────────────────────────────────────────
+
+export function tickEvents(state: GameState, wm: WorldManager, pm: ParticleManager, dt: number): void {
+  state.eventCooldown -= dt;
+
+  // Tick existing events' proximity effects
+  for (const event of state.activeEvents) {
+    if (event.triggered) continue;
+    const dx = Math.abs(state.player.x - event.worldCol);
+    const dy = Math.abs(state.player.y - event.worldRow);
+    if (dx <= event.radius && dy <= event.radius) {
+      triggerEvent(state, wm, pm, event);
+    }
+  }
+  // Remove triggered events
+  state.activeEvents = state.activeEvents.filter(e => !e.triggered);
+
+  // Maybe spawn a new event
+  if (state.eventCooldown <= 0 && state.screen === 'playing') {
+    const depth = WorldManager.tileDepth(state.player.y);
+    const rng = makePrng((state.seed ^ state.tick ^ Date.now()) >>> 0);
+    const template = pickEvent(depth, rng);
+    if (template) {
+      const eventId = state.tick;
+      const spread = 8;
+      const ev: ActiveEvent = {
+        id: eventId,
+        kind: template.kind,
+        worldRow: state.player.y + 2 + Math.floor(rng() * spread),
+        worldCol: state.player.x + Math.floor((rng() - 0.5) * 10),
+        radius: template.radius,
+        label: template.label,
+        description: template.description,
+        color: template.color,
+        lifeSeconds: 0,
+        triggered: false,
+      };
+      state.activeEvents.push(ev);
+      // Show indicator
+      spawnFloat(state, ev.worldCol * TILE_SIZE + TILE_SIZE / 2,
+        ev.worldRow * TILE_SIZE - TILE_SIZE, ev.label, ev.color, 1.1);
+    }
+    // Randomize next cooldown: 30–90s, gets shorter with depth
+    const baseCooldown = Math.max(20, 70 - depth * 0.3);
+    state.eventCooldown = baseCooldown * (0.7 + Math.random() * 0.6);
+  }
+
+  // Lore fragment discovery check
+  const lore = getLoreForDepth(
+    WorldManager.tileDepth(state.player.y),
+    state.statistics.loreFragmentsFound,
+  );
+  if (lore && state.statistics.blocksDug > 0 && state.statistics.blocksDug % 30 === 0) {
+    state.statistics.loreFragmentsFound++;
+    spawnFloat(state,
+      state.player.x * TILE_SIZE + TILE_SIZE / 2,
+      state.player.y * TILE_SIZE - TILE_SIZE * 3,
+      `📜 ${lore.title}`, '#e8c880', 1.2);
+    if (state.settings.soundEnabled) audioManager.discovery();
+  }
+}
+
+// (event IDs use state.tick — no separate counter needed)
+
+function triggerEvent(state: GameState, wm: WorldManager, pm: ParticleManager, event: ActiveEvent): void {
+  event.triggered = true;
+  state.statistics.eventsTriggered++;
+  if (state.settings.soundEnabled) audioManager.eventTrigger(event.kind);
+
+  switch (event.kind) {
+    case 'treasure_vault':
+      triggerTreasureVault(state, wm, pm, event);
+      break;
+    case 'crystal_bloom':
+      triggerCrystalBloom(state, wm, pm, event);
+      break;
+    case 'lost_cache':
+      triggerLostCache(state, pm, event);
+      break;
+    case 'energy_surge':
+      triggerEnergySurge(state, pm, event);
+      break;
+    case 'ore_vein_rich':
+      triggerRichVein(state, wm, event);
+      break;
+    case 'fossil_discovery':
+      triggerFossilDiscovery(state, wm, pm, event);
+      break;
+    case 'cave_echo':
+      triggerCaveEcho(state, wm, event);
+      break;
+    case 'ancient_inscription':
+      triggerAncientInscription(state, pm, event);
+      break;
+  }
+}
+
+function triggerTreasureVault(state: GameState, wm: WorldManager, pm: ParticleManager, event: ActiveEvent): void {
+  const count = 3 + Math.floor(Math.random() * 4);
+  for (let i = 0; i < count; i++) {
+    const r = event.worldRow + Math.floor((Math.random() - 0.5) * event.radius * 2);
+    const c = event.worldCol + Math.floor((Math.random() - 0.5) * event.radius * 2);
+    const tile = wm.getTile(r, c);
+    if (tile && tile.kind !== 'air' && tile.kind !== 'bedrock' && tile.kind !== 'sell_point') {
+      wm.setTile(r, c, { kind: 'chest', hp: 30, maxHp: 30, revealed: tile.revealed });
+      pm.emitTreasure(c * TILE_SIZE + TILE_SIZE / 2, r * TILE_SIZE + TILE_SIZE / 2);
+    }
+  }
+  spawnFloat(state, event.worldCol * TILE_SIZE + TILE_SIZE / 2,
+    event.worldRow * TILE_SIZE - TILE_SIZE * 2, '🏆 VAULT UNSEALED!', '#ffd700', 1.5);
+}
+
+function triggerCrystalBloom(state: GameState, wm: WorldManager, pm: ParticleManager, event: ActiveEvent): void {
+  const count = 5 + Math.floor(Math.random() * 6);
+  for (let i = 0; i < count; i++) {
+    const r = event.worldRow + Math.floor((Math.random() - 0.5) * event.radius * 2);
+    const c = event.worldCol + Math.floor((Math.random() - 0.5) * event.radius * 2);
+    const tile = wm.getTile(r, c);
+    if (tile && tile.kind !== 'air' && tile.kind !== 'bedrock') {
+      wm.setTile(r, c, { kind: 'crystal', hp: 85, maxHp: 85, revealed: tile.revealed, glowing: true });
+      pm.emitSparkle(c * TILE_SIZE + TILE_SIZE / 2, r * TILE_SIZE + TILE_SIZE / 2, '#cc44ff', 'high');
+    }
+  }
+  spawnFloat(state, event.worldCol * TILE_SIZE + TILE_SIZE / 2,
+    event.worldRow * TILE_SIZE - TILE_SIZE * 2, '💎 CRYSTAL BLOOM!', '#cc44ff', 1.4);
+}
+
+function triggerLostCache(state: GameState, pm: ParticleManager, event: ActiveEvent): void {
+  const bonus = 150 + Math.floor(Math.random() * 350);
+  state.player.money += Math.round(bonus * state.comboMultiplier);
+  state.statistics.moneyEarned += bonus;
+  spawnFloat(state, event.worldCol * TILE_SIZE + TILE_SIZE / 2,
+    event.worldRow * TILE_SIZE - TILE_SIZE, `+$${bonus} Found!`, '#22c55e', 1.3);
+  pm.emitTreasure(event.worldCol * TILE_SIZE + TILE_SIZE / 2, event.worldRow * TILE_SIZE + TILE_SIZE / 2);
+  state.statistics.treasuresFound++;
+}
+
+function triggerEnergySurge(state: GameState, pm: ParticleManager, event: ActiveEvent): void {
+  const restored = Math.min(state.player.maxEnergy, state.player.maxEnergy * 0.6);
+  state.player.energy = Math.min(state.player.maxEnergy, state.player.energy + restored);
+  spawnFloat(state, event.worldCol * TILE_SIZE + TILE_SIZE / 2,
+    event.worldRow * TILE_SIZE - TILE_SIZE, '⚡ Energy Restored!', '#44ffaa', 1.3);
+  pm.emit({ kind: 'spark', x: state.player.x * TILE_SIZE + TILE_SIZE / 2,
+    y: state.player.y * TILE_SIZE + TILE_SIZE / 2, color: '#44ffaa',
+    count: 16, speedMin: 2, speedMax: 5, gravity: 0, fade: 1.5 });
+}
+
+function triggerRichVein(state: GameState, wm: WorldManager, event: ActiveEvent): void {
+  const oresByDepth = ['coal','iron','silver','gold','ruby','crystal'];
+  const depth = WorldManager.tileDepth(event.worldRow);
+  const tier = Math.min(Math.floor(depth / 20), oresByDepth.length - 1);
+  const kind = oresByDepth[tier] as import('../types').TileKind;
+  const count = 8 + Math.floor(Math.random() * 8);
+  for (let i = 0; i < count; i++) {
+    const r = event.worldRow + Math.floor((Math.random() - 0.5) * event.radius * 2);
+    const c = event.worldCol + Math.floor((Math.random() - 0.5) * event.radius * 2);
+    const tile = wm.getTile(r, c);
+    if (tile && tile.kind !== 'air' && tile.kind !== 'bedrock') {
+      const hp = 28 + tier * 10;
+      wm.setTile(r, c, { kind, hp, maxHp: hp, revealed: tile.revealed });
+    }
+  }
+  spawnFloat(state, event.worldCol * TILE_SIZE + TILE_SIZE / 2,
+    event.worldRow * TILE_SIZE - TILE_SIZE * 2, `⛏ RICH VEIN!`, '#fbbf24', 1.4);
+}
+
+function triggerFossilDiscovery(state: GameState, wm: WorldManager, pm: ParticleManager, event: ActiveEvent): void {
+  const count = 6 + Math.floor(Math.random() * 6);
+  for (let i = 0; i < count; i++) {
+    const r = event.worldRow + Math.floor((Math.random() - 0.5) * event.radius * 2);
+    const c = event.worldCol + Math.floor((Math.random() - 0.5) * event.radius * 2);
+    const tile = wm.getTile(r, c);
+    if (tile && tile.kind !== 'air' && tile.kind !== 'bedrock') {
+      wm.setTile(r, c, { kind: 'fossil', hp: 35, maxHp: 35, revealed: tile.revealed });
+    }
+  }
+  state.statistics.loreFragmentsFound++;
+  spawnFloat(state, event.worldCol * TILE_SIZE + TILE_SIZE / 2,
+    event.worldRow * TILE_SIZE - TILE_SIZE * 2, '🦕 FOSSIL BED!', '#c8a96e', 1.3);
+  pm.emitSparkle(event.worldCol * TILE_SIZE + TILE_SIZE / 2, event.worldRow * TILE_SIZE, '#c8a96e', 'medium');
+}
+
+function triggerCaveEcho(state: GameState, wm: WorldManager, event: ActiveEvent): void {
+  // Reveal a large area around event
+  for (let dr = -event.radius; dr <= event.radius; dr++) {
+    for (let dc = -event.radius; dc <= event.radius; dc++) {
+      if (dr * dr + dc * dc <= event.radius * event.radius) {
+        const tile = wm.getTile(event.worldRow + dr, event.worldCol + dc);
+        if (tile) tile.revealed = true;
+      }
+    }
+  }
+  spawnFloat(state, event.worldCol * TILE_SIZE + TILE_SIZE / 2,
+    event.worldRow * TILE_SIZE - TILE_SIZE * 2, '🗺 Area Revealed!', '#60a5fa', 1.3);
+}
+
+function triggerAncientInscription(state: GameState, pm: ParticleManager, event: ActiveEvent): void {
+  state.statistics.loreFragmentsFound++;
+  // Small permanent energy bonus
+  state.player.permanentBonuses.push({ type: 'energy_regen', value: 0.3 });
+  spawnFloat(state, event.worldCol * TILE_SIZE + TILE_SIZE / 2,
+    event.worldRow * TILE_SIZE - TILE_SIZE * 2, '📜 Inscription Found!', '#e8c880', 1.4);
+  pm.emitSparkle(event.worldCol * TILE_SIZE + TILE_SIZE / 2, event.worldRow * TILE_SIZE, '#e8c880', 'high');
+}
+
+// ── Energy cell consume ───────────────────────────────────────────────────────
+
+export function consumeEnergyCell(state: GameState, pm: ParticleManager): boolean {
+  const slot = state.player.inventory.find(s => s.itemId === 'energy_cell');
+  if (!slot || slot.qty === 0) return false;
+  slot.qty--;
+  if (slot.qty === 0) {
+    state.player.inventory = state.player.inventory.filter(s => s.itemId !== 'energy_cell');
+  }
+  state.player.energy = Math.min(state.player.maxEnergy, state.player.energy + 40);
+  spawnFloat(state, state.player.x * TILE_SIZE + TILE_SIZE / 2,
+    state.player.y * TILE_SIZE - TILE_SIZE, '+40 Energy', '#44ffaa', 1.1);
+  pm.emit({ kind: 'spark', x: state.player.x * TILE_SIZE + TILE_SIZE / 2,
+    y: state.player.y * TILE_SIZE + TILE_SIZE / 2, color: '#44ffaa',
+    count: 10, speedMin: 1.5, speedMax: 3, gravity: -30, fade: 2 });
+  if (state.settings.soundEnabled) audioManager.pickup(1);
+  return true;
+}
+
+// ── Sell with combo bonus ─────────────────────────────────────────────────────
 export function unlockAchievement(state: GameState, id: AchievementId): void {
   const ach = state.achievements.find(a => a.id === id);
   if (!ach || ach.unlocked) return;
