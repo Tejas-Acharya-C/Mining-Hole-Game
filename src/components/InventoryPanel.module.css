@@ -1,0 +1,104 @@
+.overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.72);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 50; backdrop-filter: blur(5px);
+}
+.panel {
+  background: #0d0d1a;
+  border: 1px solid rgba(100,100,200,0.22);
+  border-radius: 16px; padding: 22px 24px;
+  width: min(520px, 96vw); max-height: 88vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 0 60px rgba(0,0,0,0.85);
+}
+.header {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; margin-bottom: 14px;
+}
+.title { font-size: 20px; color: #e2e8f0; margin-bottom: 2px; }
+.cap { font-size: 12px; color: #64748b; }
+.closeBtn {
+  background: rgba(255,255,255,0.07); border: none; color: #94a3b8;
+  width: 30px; height: 30px; border-radius: 7px; font-size: 15px; cursor: pointer;
+}
+.closeBtn:hover { background: rgba(255,255,255,0.14); }
+
+.toolbar {
+  display: flex; gap: 8px; align-items: center;
+  margin-bottom: 12px; flex-wrap: wrap;
+}
+.filterInput {
+  flex: 1; min-width: 120px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px; padding: 6px 10px;
+  color: #e2e8f0; font-size: 13px;
+}
+.filterInput::placeholder { color: #475569; }
+.sortBtns { display: flex; gap: 4px; }
+.sortBtn {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #64748b; border-radius: 6px;
+  padding: 5px 9px; font-size: 11px;
+  text-transform: capitalize; cursor: pointer;
+  transition: background 0.14s;
+}
+.sortBtn:hover { background: rgba(255,255,255,0.1); color: #94a3b8; }
+.sortActive { background: rgba(99,102,241,0.22); border-color: rgba(99,102,241,0.4); color: #818cf8; }
+
+.empty {
+  color: #475569; text-align: center;
+  padding: 36px 0; font-style: italic; flex: 1;
+}
+
+.itemList {
+  overflow-y: auto; flex: 1;
+  display: flex; flex-direction: column; gap: 5px;
+  margin-bottom: 12px;
+}
+.item {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px; padding: 9px 12px;
+}
+.itemGem {
+  width: 34px; height: 34px;
+  border-radius: 8px; border: 1px solid;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.gemDiamond {
+  width: 12px; height: 12px;
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
+.itemMeta { flex: 1; min-width: 0; }
+.itemName { font-size: 13px; font-weight: 600; display: block; margin-bottom: 1px; }
+.itemDesc {
+  font-size: 10px; color: #475569;
+  display: block; margin-bottom: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.rarityBadge { font-size: 10px; text-transform: capitalize; opacity: 0.8; }
+.itemQty { font-size: 14px; font-weight: 700; color: #94a3b8; min-width: 32px; text-align: right; }
+.itemVal { min-width: 60px; text-align: right; font-size: 13px; font-weight: 600; }
+.consumable { color: #44ffaa; font-size: 11px; }
+
+.footer {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding-top: 12px;
+}
+.totalVal { font-size: 14px; color: #94a3b8; }
+.totalVal strong { color: #fbbf24; }
+.sellBtn {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #fff; border: none; padding: 9px 18px;
+  border-radius: 8px; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: transform 0.1s;
+}
+.sellBtn:hover:not(:disabled) { transform: translateY(-1px); }
+.sellBtn:disabled { background: rgba(255,255,255,0.1); color: #475569; cursor: not-allowed; }

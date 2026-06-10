@@ -1,0 +1,46 @@
+.root {
+  position: absolute;
+  bottom: 24px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 30;
+  pointer-events: all;
+}
+.actionButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+.digBtn {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(99, 102, 241, 0.75);
+  border: 2px solid rgba(129, 140, 248, 0.6);
+  font-size: 28px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(99,102,241,0.4);
+  transition: transform 0.08s, background 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.digBtn:active { transform: scale(0.93); background: rgba(99,102,241,0.95); }
+.tpBtn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(150, 50, 255, 0.7);
+  border: 2px solid rgba(180, 80, 255, 0.5);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.tpBtn:active { transform: scale(0.92); }

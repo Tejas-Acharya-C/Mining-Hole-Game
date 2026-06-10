@@ -1,0 +1,28 @@
+.overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.68);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 50; backdrop-filter: blur(7px);
+}
+.panel {
+  background: #0d0d1a;
+  border: 1px solid rgba(100,100,200,0.22);
+  border-radius: 16px; padding: 30px 38px;
+  width: min(320px, 92vw); text-align: center;
+  box-shadow: 0 0 60px rgba(0,0,0,0.85);
+}
+.title { font-size: 22px; color: #e2e8f0; margin-bottom: 22px; }
+.buttons { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.btn {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.09);
+  color: #e2e8f0; padding: 11px 18px;
+  border-radius: 10px; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: background 0.14s;
+}
+.btn:hover { background: rgba(255,255,255,0.11); }
+.sellBtn { color: #22c55e; border-color: rgba(34,197,94,0.2); }
+.sellBtn:hover { background: rgba(34,197,94,0.1); }
+.danger { color: #f87171; border-color: rgba(248,113,113,0.18); }
+.danger:hover { background: rgba(248,113,113,0.09); }
+.hint { font-size: 11px; color: #475569; }
