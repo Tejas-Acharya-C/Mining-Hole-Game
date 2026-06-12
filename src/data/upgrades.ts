@@ -39,7 +39,7 @@ export const UPGRADE_DEFS: Record<UpgradeId, UpgradeDef> = {
   },
   scanner: {
     id: 'scanner', label: 'Ground Scanner', icon: '📡',
-    description: 'Reveals ore locations through walls up to scan range.',
+    description: 'Reveals hidden ores through walls. Stacks with Ore Detector.',
     maxLevel: 4, baseCost: 500, costMultiplier: 3.2, category: 'exploration',
     unlockDepth: 20,
   },
@@ -51,7 +51,7 @@ export const UPGRADE_DEFS: Record<UpgradeId, UpgradeDef> = {
   },
   ore_detector: {
     id: 'ore_detector', label: 'Ore Detector', icon: '🔮',
-    description: 'Ores pulse and glow within detection range.',
+    description: 'Nearby ores pulse and glow. Good before buying a Scanner.',
     maxLevel: 3, baseCost: 450, costMultiplier: 3.0, category: 'exploration',
     unlockDepth: 15,
   },
@@ -63,8 +63,8 @@ export const UPGRADE_DEFS: Record<UpgradeId, UpgradeDef> = {
   },
   artifact_sense: {
     id: 'artifact_sense', label: 'Artifact Sense', icon: '🗺',
-    description: 'Compass points toward rare artifacts and secret chambers.',
-    maxLevel: 1, baseCost: 3500, costMultiplier: 1, category: 'special',
+    description: 'Compass points toward the buried artifact while you search deeper.',
+    maxLevel: 1, baseCost: 1800, costMultiplier: 1, category: 'special',
     unlockDepth: 80,
   },
   reinforced_picks: {

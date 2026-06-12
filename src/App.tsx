@@ -8,6 +8,7 @@ import {
   tickEvents, consumeEnergyCell, tickBiomeTransition,
   tickHazards, updateBiome, spawnFloat,
 } from './systems/GameManager';
+import { syncProgressionJournal, updateProgressionStage } from './systems/ProgressionSystem';
 import { SaveManager } from './systems/SaveManager';
 import { WorldManager } from './systems/WorldManager';
 import { ParticleManager } from './systems/ParticleManager';
@@ -33,6 +34,10 @@ import StatisticsPanel from './components/StatisticsPanel';
 import QuestsPanel from './components/QuestsPanel';
 import TouchControls from './components/TouchControls';
 import EndgameModal from './components/EndgameModal';
+import { ObjectiveTracker } from './components/ObjectiveTracker';
+import { HintPanel } from './components/HintPanel';
+import { JournalPanel } from './components/JournalPanel';
+import { MilestoneModal } from './components/MilestoneModal';
 
 // ── Singleton managers live outside React to avoid re-creation ────────────────
 let wmInstance: WorldManager | null = null;
@@ -259,6 +264,8 @@ export default function App() {
 
       pmInstance.tick(dt);
       tickEvents(state, wm, pmInstance, dt);
+      updateProgressionStage(state);
+      syncProgressionJournal(state);
       audioManager.updateDepthMusic(playerDepth(state.player));
 
       // Decay hit flash
@@ -379,6 +386,7 @@ export default function App() {
     wmInstance = new WorldManager(state.seed, state.chunks);
     wmInstance.artifactActivated = state.artifactActivated ?? false;
     wmInstance.facilityUnlocked = state.facilityUnlocked ?? false;
+    syncProgressionJournal(state);
     prevAchRef.current = new Set(state.achievements.filter(a => a.unlocked).map(a => a.id));
     revealAround(state, wmInstance);
     syncAudio(state.settings);
@@ -526,6 +534,18 @@ export default function App() {
 
       {screen === 'playing' && state && (
         <>
+          <ObjectiveTracker
+            state={state}
+            isMobile={useMobileUI}
+            onOpenHints={() => {
+              state.showHintPanel = true;
+              forceUpdate(n => n + 1);
+            }}
+            onOpenJournal={() => {
+              state.showJournal = true;
+              forceUpdate(n => n + 1);
+            }}
+          />
           <HUD
             state={state}
             useMobileUI={useMobileUI}
@@ -536,6 +556,33 @@ export default function App() {
             onUseEnergyCell={handleUseEnergyCell}
           />
           <TutorialHint state={state} />
+          {state.showHintPanel && (
+            <HintPanel
+              state={state}
+              onClose={() => {
+                state.showHintPanel = false;
+                forceUpdate(n => n + 1);
+              }}
+            />
+          )}
+          {state.showJournal && (
+            <JournalPanel
+              state={state}
+              onClose={() => {
+                state.showJournal = false;
+                forceUpdate(n => n + 1);
+              }}
+            />
+          )}
+          {state.activeMilestonePopup && (
+            <MilestoneModal
+              milestoneId={state.activeMilestonePopup}
+              onClose={() => {
+                state.activeMilestonePopup = null;
+                forceUpdate(n => n + 1);
+              }}
+            />
+          )}
           {state.atEndgameStabilizer && (
             <EndgameModal
               state={state}

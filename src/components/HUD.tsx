@@ -249,13 +249,6 @@ export default function HUD({ state, useMobileUI, onPause, onShop, onInventory, 
           <div className={styles.surfaceHint}>
             <span style={{ color: 'var(--color-gold)' }}>DEPOT STATUS:</span> ACTIVE · <kbd>E</kbd> Sell Cargo · <kbd>B</kbd> Shop · <kbd>Q</kbd> Quests · <kbd>I</kbd> Bag
           </div>
-        ) : (questDef && activeQuest) ? (
-          <div className={styles.activeObjective}>
-            <span className={styles.objIndicator}>🛰 COMPASS TARGET:</span> {questDef.title} 
-            <span className={styles.objProgress}>
-              ({activeQuest.progress}/{('count' in questDef.objective) ? questDef.objective.count : ('totalValue' in questDef.objective) ? questDef.objective.totalValue : ('depth' in questDef.objective) ? questDef.objective.depth : 1})
-            </span>
-          </div>
         ) : null}
 
         {/* Permanent bonuses row */}

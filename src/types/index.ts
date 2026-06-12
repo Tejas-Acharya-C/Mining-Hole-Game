@@ -429,6 +429,18 @@ export interface GameState {
     life: number;
     maxLife: number;
   };
+
+  // Progression communication
+  objectiveStage?: string;  // current ObjectiveStage
+  journalEntries?: Array<{ type: string; title: string; date: number }>;
+  hintsShown?: string[];  // HintCategory[]
+  milestonesSeen?: string[];  // milestone IDs
+  showObjectiveTracker?: boolean;
+  showJournal?: boolean;
+  showHintPanel?: boolean;
+  lastMilestonePopup?: { id: string; timestamp: number };
+  activeMilestonePopup?: string | null;
+
   artifactActivated?: boolean;
   facilityUnlocked?: boolean;
   prestigeCount?: number;
@@ -455,6 +467,13 @@ export interface SaveData {
   secretFound: boolean;
   playTime: number;
   currentBiome: BiomeId;
+
+  // Progression communication persistence
+  objectiveStage?: string;
+  journalEntries?: Array<{ type: string; title: string; date: number }>;
+  hintsShown?: string[];
+  milestonesSeen?: string[];
+
   artifactActivated?: boolean;
   facilityUnlocked?: boolean;
   prestigeCount?: number;

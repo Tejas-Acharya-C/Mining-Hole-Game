@@ -167,4 +167,36 @@ describe('SaveManager', () => {
     expect(loaded.comboMultiplier).toBe(1.0);
     expect(loaded.hitFlashTile).toBeNull();
   });
+
+  it('round-trips progression communication fields', () => {
+    const state = freshState();
+    state.objectiveStage = 'terminal_activated';
+    state.journalEntries = [{ type: 'milestone', title: 'Terminal activated', date: 123 }];
+    state.hintsShown = ['The terminal has activated. New pathways may now exist below.'];
+    state.milestonesSeen = ['terminal_activated'];
+    SaveManager.save(state);
+
+    const loaded = SaveManager.load()!;
+    expect(loaded.objectiveStage).toBe('terminal_activated');
+    expect(loaded.journalEntries).toEqual(state.journalEntries);
+    expect(loaded.hintsShown).toEqual(state.hintsShown);
+    expect(loaded.milestonesSeen).toEqual(state.milestonesSeen);
+  });
+
+  it('migrates missing progression fields safely', () => {
+    const state = freshState();
+    SaveManager.save(state);
+    const raw = JSON.parse(store['deepdig_save_v2']!);
+    delete raw.objectiveStage;
+    delete raw.journalEntries;
+    delete raw.hintsShown;
+    delete raw.milestonesSeen;
+    store['deepdig_save_v2'] = JSON.stringify(raw);
+
+    const loaded = SaveManager.load()!;
+    expect(loaded.objectiveStage).toBe('new_game');
+    expect(loaded.journalEntries).toEqual([]);
+    expect(loaded.hintsShown).toEqual([]);
+    expect(loaded.milestonesSeen).toEqual([]);
+  });
 });

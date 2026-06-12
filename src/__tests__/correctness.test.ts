@@ -5,6 +5,7 @@ import { ParticleManager } from '../systems/ParticleManager';
 import { SURFACE_TILE_ROW, WORLD_WIDTH_CHUNKS } from '../data/tiles';
 import { CHUNK_SIZE } from '../types';
 import { BIOME_DEFS } from '../data/biomes';
+import { QUEST_DEFS } from '../data/quests';
 
 function setup(seed = 42) {
   const state = createInitialState(seed);
@@ -104,6 +105,22 @@ describe('Gameplay Correctness Audit', () => {
       
       // Verify quest is completed
       expect(quest!.status).toBe('completed');
+    });
+
+    it('initial quest state activates quests with no dependency and locks the rest', () => {
+      const { state } = setup();
+      const activeQuestIds = state.quests.filter(q => q.status === 'active').map(q => q.id);
+      const lockedQuestIds = state.quests.filter(q => q.status === 'locked').map(q => q.id);
+
+      for (const quest of state.quests) {
+        if (!QUEST_DEFS[quest.id].unlockAfter) {
+          expect(activeQuestIds).toContain(quest.id);
+          expect(lockedQuestIds).not.toContain(quest.id);
+        } else {
+          expect(lockedQuestIds).toContain(quest.id);
+          expect(activeQuestIds).not.toContain(quest.id);
+        }
+      }
     });
 
     it('q_max_battery completes only when battery upgrade reaches level 6', () => {

@@ -39,3 +39,8 @@ coverage/
 
 # Vite cache
 .vite/
+.cache/
+
+# Local scratch / experiment files
+tmp_*
+*.tmp

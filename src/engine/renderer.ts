@@ -59,8 +59,8 @@ export function computeCamera(state: GameState, canvasW: number, canvasH: number
 
   const px = player.x * TILE_SIZE + TILE_SIZE / 2;
   const py = player.y * TILE_SIZE + TILE_SIZE / 2;
-  // Reduce vertical lead on mobile so player remains centered below the top HUD
-  const leadY = mobileUI ? 92 : 70;
+  // Bias camera slightly below center so terrain fills the view without excess sky
+  const leadY = mobileUI ? 76 : 52;
 
   let cx = px - virtualW / 2;
   let cy = py - virtualH / 2 + leadY;
@@ -168,11 +168,10 @@ export function render(
   // Biome transition banner
   drawBiomeTransition(ctx, state, cw, ch);
 
-  // FPS counter
   if (state.settings.showFPS && fps !== undefined) {
-    ctx.fillStyle = '#aaaaaa';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
     ctx.font = '11px monospace';
-    ctx.fillText(`${fps} fps | ${pm.activeCount} particles | depth:${depth}`, 8, 16);
+    ctx.fillText(`${fps} FPS`, 8, 16);
   }
 
   // Touch joystick overlay
@@ -466,6 +465,12 @@ function drawPlayer(ctx: CanvasRenderingContext2D, state: GameState, cam: Camera
   const s  = TILE_SIZE;
   const flip = player.facing === 'left';
 
+  // Ground shadow for silhouette readability
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.42)';
+  ctx.beginPath();
+  ctx.ellipse(sx + s / 2, sy + s - 2, s * 0.34, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
   ctx.save();
   if (flip) {
     ctx.translate(sx + s / 2, sy);
@@ -474,9 +479,13 @@ function drawPlayer(ctx: CanvasRenderingContext2D, state: GameState, cam: Camera
   }
 
   // Body
-  ctx.fillStyle = '#f0c070';
+  ctx.fillStyle = '#ffd08a';
   roundRect(ctx, sx + 8, sy + 6, s - 16, s - 10, 4);
   ctx.fill();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)';
+  ctx.lineWidth = 1.5;
+  roundRect(ctx, sx + 8, sy + 6, s - 16, s - 10, 4);
+  ctx.stroke();
 
   // Helmet/hat
   ctx.fillStyle = '#7a3a10';

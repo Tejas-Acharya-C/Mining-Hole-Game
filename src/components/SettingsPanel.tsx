@@ -55,7 +55,7 @@ export default function SettingsPanel({ settings, onChange, onClose }: Props) {
               <option value="high">High</option>
             </select>
           </Row>
-          <Row label="Show HUD FPS Diagnostic">
+          <Row label="Show FPS Counter">
             <Toggle on={settings.showFPS} onClick={() => onChange('showFPS', !settings.showFPS)} />
           </Row>
           <Row label="Auto-sell metals on surface">

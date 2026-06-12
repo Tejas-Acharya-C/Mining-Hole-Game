@@ -17,6 +17,7 @@ import { audioManager } from './AudioManager';
 import type { ParticleManager } from './ParticleManager';
 import { defaultSettings } from '../data/defaults';
 import { BIOME_DEFS } from '../data/biomes';
+import { addJournalEntry } from './ProgressionSystem';
 
 // ── FloatText ID counter ──────────────────────────────────────────────────────
 let _ftid = 0;
@@ -48,9 +49,10 @@ export function createInitialState(seed?: number, mode: GameMode = 'normal'): Ga
     surfacedThisTrip: true,
   };
 
-  // Initialise quests — first 3 active, rest locked
-  const quests = QUEST_ORDER.map((id, i) => ({
-    id, status: (i < 3 ? 'active' : 'locked') as 'active' | 'locked',
+  // Initialise quests — quests without dependencies start active, others remain locked until unlocked
+  const quests = QUEST_ORDER.map((id) => ({
+    id,
+    status: QUEST_DEFS[id].unlockAfter ? 'locked' : 'active' as 'active' | 'locked',
     progress: 0,
   }));
 
@@ -96,6 +98,14 @@ export function createInitialState(seed?: number, mode: GameMode = 'normal'): Ga
     hitFlashTile: null,
     depthPressureAlpha: 0,
     introComplete: false,
+    objectiveStage: 'new_game',
+    journalEntries: [{ type: 'milestone', title: 'Began the dig beneath the old site.', date: Date.now() }],
+    hintsShown: [],
+    milestonesSeen: [],
+    showObjectiveTracker: true,
+    showHintPanel: false,
+    showJournal: false,
+    activeMilestonePopup: null,
   };
 
   // Pre-generate visible chunks
@@ -131,6 +141,7 @@ export function updateBiome(state: GameState, wm: WorldManager): void {
 
   state.currentBiome = biome;
   state.statistics.biomesDiscovered.add(biome);
+  addJournalEntry(state, 'discovery', `Entered ${BIOME_DEFS[biome].label}.`);
   if (state.settings.soundEnabled) audioManager.biomeEnter(biome);
 
   // Trigger transition banner
@@ -319,6 +330,7 @@ function breakTile(
           life: 4.0,
           maxLife: 4.0,
         };
+        addJournalEntry(state, 'milestone', 'Recovered the buried artifact.');
       }
     }
   }
@@ -335,6 +347,7 @@ function breakTile(
     const chunkDepth = WorldManager.tileToChunkRow(row);
     if (chunkDepth === 10 && !player.inventory.some(s => s.itemId === 'facility_key')) {
       player.inventory.push({ itemId: 'facility_key', qty: 1 });
+      addJournalEntry(state, 'discovery', 'Recovered the Facility Key from the Ancient Facility.');
       spawnFloat(state, col * TILE_SIZE + TILE_SIZE / 2, row * TILE_SIZE - TILE_SIZE * 3, 'Found Facility Keycard!', '#a855f7', 1.2);
       if (state.settings.soundEnabled) audioManager.discovery();
     } else if (chunkDepth === 12 && !player.inventory.some(s => s.itemId === 'core_stabilizer')) {
@@ -996,11 +1009,11 @@ function claimQuestIfDone(state: GameState, id: QuestId): void {
   }
 
   state.statistics.questsCompleted++;
+  addJournalEntry(state, 'quest', `Completed quest: ${def.title}.`);
   if (state.settings.soundEnabled) audioManager.questComplete();
 
-  // Unlock next quest in chain
-  const nextId = QUEST_ORDER.find(qid => QUEST_DEFS[qid].unlockAfter === id);
-  if (nextId) {
+  // Unlock any quests that are waiting on this quest
+  for (const nextId of QUEST_ORDER.filter(qid => QUEST_DEFS[qid].unlockAfter === id)) {
     const nextQ = state.quests.find(qq => qq.id === nextId);
     if (nextQ && nextQ.status === 'locked') nextQ.status = 'active';
   }
@@ -1040,6 +1053,7 @@ export function interactAncientTerminal(state: GameState, wm: WorldManager): voi
       life: 4.0,
       maxLife: 4.0,
     };
+    addJournalEntry(state, 'milestone', 'Activated the ancient terminal.');
     return;
   }
   
@@ -1065,6 +1079,7 @@ export function interactAncientTerminal(state: GameState, wm: WorldManager): voi
       life: 4.0,
       maxLife: 4.0,
     };
+    addJournalEntry(state, 'milestone', 'Unlocked the path to the World Core.');
     return;
   }
   
@@ -1079,6 +1094,7 @@ export function interactAncientTerminal(state: GameState, wm: WorldManager): voi
 
 export function interactResonanceStabilizer(state: GameState): void {
   state.atEndgameStabilizer = true;
+  addJournalEntry(state, 'milestone', 'Unlocked the final ending choice.');
 }
 
 export function tickHazards(state: GameState, wm: WorldManager, dt: number): void {

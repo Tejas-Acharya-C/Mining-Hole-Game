@@ -5,7 +5,7 @@ import styles from './QuestsPanel.module.css';
 interface Props { state: GameState; onClose: () => void; }
 
 const STATUS_COLOR = { active: '#60a5fa', completed: '#22c55e', claimed: '#fbbf24', locked: '#334155' };
-const STATUS_LABEL = { active: 'Active', completed: 'Complete! Claim', claimed: 'Claimed', locked: '🔒 Locked' };
+const STATUS_LABEL = { active: 'Active', completed: 'Complete', claimed: 'Complete', locked: '🔒 Locked' };
 
 export default function QuestsPanel({ state, onClose }: Props) {
   const active    = state.quests.filter(q => q.status === 'active');
