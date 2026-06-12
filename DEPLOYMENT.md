@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Deep Dig is a pure static site — the production build outputs plain HTML, CSS, and JS with no server required.
+**VOIDCORE: DEEP ALCHEMY** is a pure static site — the production build outputs plain HTML, CSS, and JS with no server required.
 
 ---
 
@@ -91,7 +91,7 @@ Or via dashboard — import from GitHub, build settings are auto-detected.
 
 ## SPA Routing
 
-Deep Dig is a single-page app with no client-side routing (all navigation is internal state). No `_redirects` or `vercel.json` routing config is required.
+**VOIDCORE: DEEP ALCHEMY** is a single-page app with no client-side routing (all navigation is internal state). No `_redirects` or `vercel.json` routing config is required.
 
 ---
 

@@ -60,22 +60,55 @@ function generateCaveMap(rng: () => number, biome: BiomeId): boolean[][] {
 
 // ── Ore vein generator ────────────────────────────────────────────────────────
 
-function carveVein(
-  tiles: Tile[][], rng: () => number,
-  startR: number, startC: number, kind: TileKind, length: number,
-) {
-  let r = startR, c = startC;
-  for (let i = 0; i < length; i++) {
-    if (r >= 0 && r < CHUNK_SIZE && c >= 0 && c < CHUNK_SIZE) {
-      if (tiles[r][c].kind !== 'air' && tiles[r][c].kind !== 'bedrock') {
+function carveVeinBranching(
+  tiles: Tile[][],
+  rng: () => number,
+  startRow: number,
+  startCol: number,
+  kind: TileKind,
+  maxSize: number
+): void {
+  let placed = 0;
+  const queue: [number, number][] = [[startRow, startCol]];
+  const visited = new Set<string>();
+  
+  while (queue.length > 0 && placed < maxSize) {
+    const idx = Math.floor(rng() * queue.length);
+    const [r, c] = queue.splice(idx, 1)[0];
+    
+    const key = `${r},${c}`;
+    if (visited.has(key)) continue;
+    visited.add(key);
+    
+    if (r >= 0 && r < CHUNK_SIZE && c >= 1 && c < CHUNK_SIZE - 1) {
+      const tile = tiles[r][c];
+      if (tile.kind !== 'air' && tile.kind !== 'bedrock' && tile.kind !== 'sell_point') {
         tiles[r][c] = makeTile(kind);
+        placed++;
       }
     }
-    const dir = Math.floor(rng() * 4);
-    if (dir === 0) r--;
-    else if (dir === 1) r++;
-    else if (dir === 2) c--;
-    else c++;
+    
+    const neighbors: [number, number][] = [
+      [r - 1, c],
+      [r + 1, c],
+      [r, c - 1],
+      [r, c + 1]
+    ];
+    
+    for (let i = neighbors.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [neighbors[i], neighbors[j]] = [neighbors[j], neighbors[i]];
+    }
+    
+    for (const [nr, nc] of neighbors) {
+      if (nr >= 0 && nr < CHUNK_SIZE && nc >= 1 && nc < CHUNK_SIZE - 1) {
+        const dist = Math.hypot(nr - startRow, nc - startCol);
+        const spawnProb = Math.max(0.2, 1.0 - dist * 0.25);
+        if (rng() < spawnProb) {
+          queue.push([nr, nc]);
+        }
+      }
+    }
   }
 }
 
@@ -85,6 +118,8 @@ export class WorldManager {
   private seed: number;
   private chunks: Map<string, Chunk>;
   private maxCachedChunks = 64;
+  public artifactActivated = false;
+  public facilityUnlocked = false;
 
   constructor(seed: number, chunksMap: Map<string, Chunk>) {
     this.seed = seed;
@@ -193,6 +228,9 @@ export class WorldManager {
       // Sell point
       tiles[SURFACE_TILE_ROW][mid - 5] = makeTile('sell_point');
       tiles[SURFACE_TILE_ROW - 1][mid - 5] = makeTile('air');
+      // Ancient Terminal
+      tiles[SURFACE_TILE_ROW][mid - 7] = makeTile('ancient_terminal');
+      tiles[SURFACE_TILE_ROW - 1][mid - 7] = makeTile('air');
     }
     // Border bedrock
     for (let r = 0; r < CHUNK_SIZE; r++) {
@@ -204,6 +242,23 @@ export class WorldManager {
   private generateUndergroundChunk(
     tiles: Tile[][], cx: number, cy: number, biome: BiomeId, rng: () => number,
   ): void {
+    if (cy >= 10 && !this.artifactActivated) {
+      for (let r = 0; r < CHUNK_SIZE; r++) {
+        for (let c = 0; c < CHUNK_SIZE; c++) {
+          tiles[r][c] = makeTile('bedrock');
+        }
+      }
+      return;
+    }
+    if (cy >= 12 && !this.facilityUnlocked) {
+      for (let r = 0; r < CHUNK_SIZE; r++) {
+        for (let c = 0; c < CHUNK_SIZE; c++) {
+          tiles[r][c] = makeTile('bedrock');
+        }
+      }
+      return;
+    }
+
     const biomeDef = BIOME_DEFS[biome];
     const caveMap = biomeDef.specialFeatures.includes('cave') ? generateCaveMap(rng, biome) : null;
 
@@ -218,26 +273,55 @@ export class WorldManager {
 
         // Base tile with variation
         const variant = Math.floor(rng() * 4);
-        let kind: TileKind = biomeDef.baseTile;
-
-        // Ore placement
-        for (const ore of biomeDef.ores) {
-          if (ore.minDepth <= cy && rng() < ore.weight) {
-            kind = ore.kind;
-            break;
-          }
-        }
-
-        tiles[r][c] = makeTile(kind, variant);
+        tiles[r][c] = makeTile(biomeDef.baseTile, variant);
       }
     }
 
-    // Ore veins — special clusters
+    // Balanced branching ore veins
     for (const ore of biomeDef.ores) {
-      if (ore.clusterSize && ore.minDepth <= cy && rng() < 0.15) {
-        const startR = Math.floor(rng() * CHUNK_SIZE);
-        const startC = 1 + Math.floor(rng() * (CHUNK_SIZE - 2));
-        carveVein(tiles, rng, startR, startC, ore.kind, ore.clusterSize * 3);
+      if (ore.minDepth <= cy && ore.veinsPerChunk !== undefined) {
+        for (let i = 0; i < ore.veinsPerChunk; i++) {
+          if (ore.spawnChance !== undefined && rng() >= ore.spawnChance) continue;
+          
+          const startR = Math.floor(rng() * CHUNK_SIZE);
+          const startC = 1 + Math.floor(rng() * (CHUNK_SIZE - 2));
+          const sizeMin = ore.veinSizeMin ?? 1;
+          const sizeMax = ore.veinSizeMax ?? 1;
+          const targetSize = sizeMin + Math.floor(rng() * (sizeMax - sizeMin + 1));
+          
+          carveVeinBranching(tiles, rng, startR, startC, ore.kind, targetSize);
+        }
+      }
+    }
+
+    // Procedural structures (exclude surface and secret chamber)
+    if (biome !== 'secret_chamber' && cy > 0) {
+      const isEndgameGuaranteed = cx === 1 && (cy === 10 || cy === 12 || cy === 14);
+      if (isEndgameGuaranteed) {
+        if (cy === 10) {
+          this.carveFacilityContainmentChamber(tiles, rng);
+        } else if (cy === 12) {
+          this.carveGeothermalCore(tiles, rng);
+        } else if (cy === 14) {
+          this.carveFractureRift(tiles, rng);
+        }
+      } else {
+        const structRoll = rng();
+        if (structRoll < 0.08) {
+          if (biome === 'crystal_cavern') {
+            this.carveCrystalCathedral(tiles, rng);
+          } else if (biome === 'fossil_zone') {
+            this.carveFossilChamber(tiles, rng);
+          } else if (biome === 'void_realm') {
+            if (rng() < 0.5) this.carveAncientMachinery(tiles, rng);
+            else this.carveBuriedVault(tiles, rng);
+          } else if (biome === 'soil_layer' || biome === 'clay_layer') {
+            this.carveAbandonedMine(tiles, rng);
+          } else {
+            if (rng() < 0.5) this.carveBuriedVault(tiles, rng);
+            else this.carveAncientMachinery(tiles, rng);
+          }
+        }
       }
     }
 
@@ -257,6 +341,170 @@ export class WorldManager {
         tiles[r][Math.floor(CHUNK_SIZE / 2)] = makeTile('air');
       }
     }
+  }
+
+  private carveAbandonedMine(tiles: Tile[][], rng: () => number): void {
+    const row = 4 + Math.floor(rng() * 6);
+    for (let c = 1; c < CHUNK_SIZE - 1; c++) {
+      tiles[row][c] = makeTile('air');
+      tiles[row - 1][c] = makeTile('air');
+    }
+    for (let c = 3; c < CHUNK_SIZE - 2; c += 4) {
+      tiles[row][c] = makeTile('ladder');
+      tiles[row][c + 2] = makeTile('ladder');
+      tiles[row - 1][c] = makeTile('ladder');
+      tiles[row - 2][c] = makeTile('ladder');
+      tiles[row - 2][c + 1] = makeTile('ladder');
+      tiles[row - 2][c + 2] = makeTile('ladder');
+    }
+    const chestCol = rng() < 0.5 ? 2 : CHUNK_SIZE - 3;
+    tiles[row][chestCol] = makeTile('chest');
+  }
+
+  private carveCrystalCathedral(tiles: Tile[][], _rng: () => number): void {
+    const centerR = 8;
+    const centerC = 8;
+    const radius = 4;
+    
+    for (let r = centerR - radius; r <= centerR + radius; r++) {
+      for (let c = centerC - radius; c <= centerC + radius; c++) {
+        const dist = Math.hypot(r - centerR, c - centerC);
+        if (dist <= radius) {
+          if (r >= 0 && r < CHUNK_SIZE && c >= 1 && c < CHUNK_SIZE - 1) {
+            tiles[r][c] = makeTile('air');
+          }
+        }
+      }
+    }
+    
+    for (let r = centerR - radius - 1; r <= centerR + radius + 1; r++) {
+      for (let c = centerC - radius - 1; c <= centerC + radius + 1; c++) {
+        const dist = Math.hypot(r - centerR, c - centerC);
+        if (dist > radius && dist <= radius + 1.2) {
+          if (r >= 0 && r < CHUNK_SIZE && c >= 1 && c < CHUNK_SIZE - 1) {
+            const t = tiles[r][c];
+            if (t.kind !== 'bedrock' && t.kind !== 'air') {
+              tiles[r][c] = { kind: 'crystal', hp: 85, maxHp: 85, revealed: false, glowing: true };
+            }
+          }
+        }
+      }
+    }
+    
+    tiles[centerR][centerC] = makeTile('chest');
+    tiles[centerR + 1][centerC] = makeTile('ancient_brick');
+  }
+
+  private carveFossilChamber(tiles: Tile[][], _rng: () => number): void {
+    const startR = 4;
+    const endR = 11;
+    const startC = 3;
+    const endC = 12;
+    for (let r = startR; r <= endR; r++) {
+      for (let c = startC; c <= endC; c++) {
+        tiles[r][c] = makeTile('air');
+      }
+    }
+    
+    for (let c = startC + 1; c <= endC - 1; c++) {
+      tiles[startR + 2][c] = makeTile('fossil');
+    }
+    for (let c = startC + 2; c <= endC - 2; c += 2) {
+      tiles[startR + 1][c] = makeTile('fossil');
+      tiles[startR + 3][c] = makeTile('fossil');
+    }
+    tiles[startR + 2][endC - 1] = makeTile('relic');
+  }
+
+  private carveAncientMachinery(tiles: Tile[][], _rng: () => number): void {
+    const centerR = 8;
+    const centerC = 8;
+    const radius = 3;
+    
+    for (let r = centerR - radius; r <= centerR + radius; r++) {
+      for (let c = centerC - radius; c <= centerC + radius; c++) {
+        if (Math.hypot(r - centerR, c - centerC) <= radius) {
+          if (r >= 0 && r < CHUNK_SIZE && c >= 1 && c < CHUNK_SIZE - 1) {
+            tiles[r][c] = makeTile('air');
+          }
+        }
+      }
+    }
+    
+    tiles[centerR][centerC] = makeTile('energy_node');
+    tiles[centerR - 1][centerC] = makeTile('ancient_brick');
+    tiles[centerR + 1][centerC] = makeTile('ancient_brick');
+    tiles[centerR][centerC - 1] = makeTile('ancient_brick');
+    tiles[centerR][centerC + 1] = makeTile('ancient_brick');
+    
+    tiles[centerR + 1][centerC + 1] = makeTile('chest');
+  }
+
+  private carveBuriedVault(tiles: Tile[][], rng: () => number): void {
+    const startR = 5;
+    const startC = 5;
+    const wallKind = rng() < 0.5 ? 'ancient_brick' : 'obsidian';
+    for (let r = startR; r < startR + 5; r++) {
+      for (let c = startC; c < startC + 5; c++) {
+        tiles[r][c] = makeTile(wallKind);
+      }
+    }
+    for (let r = startR + 1; r < startR + 4; r++) {
+      for (let c = startC + 1; c < startC + 4; c++) {
+        tiles[r][c] = makeTile('air');
+      }
+    }
+    tiles[startR + 2][startC + 2] = makeTile('chest');
+    tiles[startR + 2][startC + 1] = makeTile('gold');
+    tiles[startR + 2][startC + 3] = makeTile('gold');
+  }
+
+  private carveFacilityContainmentChamber(tiles: Tile[][], _rng: () => number): void {
+    for (let r = 3; r <= 12; r++) {
+      for (let c = 2; c <= 13; c++) {
+        if (r === 3 || r === 12 || c === 2 || c === 13) {
+          tiles[r][c] = makeTile('ancient_brick');
+        } else {
+          tiles[r][c] = makeTile('air');
+        }
+      }
+    }
+    tiles[4][3] = makeTile('security_grid');
+    tiles[4][12] = makeTile('security_grid');
+    tiles[11][3] = makeTile('security_grid');
+    tiles[11][12] = makeTile('security_grid');
+    tiles[8][7] = makeTile('chest');
+  }
+
+  private carveGeothermalCore(tiles: Tile[][], _rng: () => number): void {
+    for (let r = 3; r <= 12; r++) {
+      for (let c = 2; c <= 13; c++) {
+        if (r === 3 || r === 12 || c === 2 || c === 13) {
+          tiles[r][c] = makeTile('magma_rock');
+        } else {
+          tiles[r][c] = makeTile('air');
+        }
+      }
+    }
+    for (let c = 3; c <= 12; c++) {
+      tiles[11][c] = makeTile('magma_rock');
+    }
+    tiles[10][7] = makeTile('chest');
+    tiles[11][7] = makeTile('obsidian');
+  }
+
+  private carveFractureRift(tiles: Tile[][], _rng: () => number): void {
+    for (let r = 2; r <= 13; r++) {
+      for (let c = 2; c <= 13; c++) {
+        if (r === 2 || r === 13 || c === 2 || c === 13) {
+          tiles[r][c] = makeTile('void_stone');
+        } else {
+          tiles[r][c] = makeTile('air');
+        }
+      }
+    }
+    tiles[8][7] = makeTile('resonance_stabilizer');
+    tiles[8][6] = makeTile('chest');
   }
 
   private carveSecretChamber(tiles: Tile[][], cx: number, rng: () => number): void {

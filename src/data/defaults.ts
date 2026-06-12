@@ -2,15 +2,27 @@ import type { Settings } from '../types';
 
 export function defaultSettings(): Settings {
   return {
-    soundEnabled: true,
-    musicEnabled: true,
-    volume: 0.5,
-    musicVolume: 0.3,
-    showFPS: false,
-    showTutorial: true,
-    screenShake: true,
+    // Audio
+    soundEnabled:    true,
+    musicEnabled:    true,
+    volume:          0.5,
+    musicVolume:     0.3,
+    // Graphics
+    showFPS:         false,
+    screenShake:     true,
     particleQuality: 'medium',
-    touchControls: false,
-    autoSell: true,
+    lightingQuality: 'medium',
+    // Gameplay
+    showTutorial:    true,
+    touchControls:   false,
+    autoSell:        true,
+    autosaveInterval: 30,
+    // Accessibility
+    colorblindMode:  'none',
+    reducedMotion:   false,
+    reducedFlashing: false,
+    highContrast:    false,
+    uiScale:         'normal',
+    largerText:      false,
   };
 }

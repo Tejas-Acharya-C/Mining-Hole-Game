@@ -16,6 +16,7 @@ import { makePrng, WorldManager } from './WorldManager';
 import { audioManager } from './AudioManager';
 import type { ParticleManager } from './ParticleManager';
 import { defaultSettings } from '../data/defaults';
+import { BIOME_DEFS } from '../data/biomes';
 
 // ── FloatText ID counter ──────────────────────────────────────────────────────
 let _ftid = 0;
@@ -29,7 +30,7 @@ export function createInitialState(seed?: number, mode: GameMode = 'normal'): Ga
 
   const upgrades: Record<UpgradeId, number> = {
     shovel: 0, backpack: 0, battery: 0, lantern: 0, boots: 0,
-    drill: 0, jetpack: 0, scanner: 0, auto_collect: 0, critical_chance: 0,
+    drill: 0, jetpack: 0, scanner: 0, critical_chance: 0,
     ore_detector: 0, teleport: 0, artifact_sense: 0, reinforced_picks: 0,
   };
 
@@ -44,6 +45,7 @@ export function createInitialState(seed?: number, mode: GameMode = 'normal'): Ga
     teleportCharges: 0,
     shakeAmount: 0,
     permanentBonuses: [],
+    surfacedThisTrip: true,
   };
 
   // Initialise quests — first 3 active, rest locked
@@ -110,7 +112,7 @@ export function createInitialState(seed?: number, mode: GameMode = 'normal'): Ga
 // ── Light reveal ──────────────────────────────────────────────────────────────
 export function revealAround(state: GameState, wm: WorldManager): void {
   const { player } = state;
-  const radius = lightRadius(player.upgrades.lantern);
+  const radius = lightRadius(player.upgrades.lantern, state.activeModifiers);
   for (let dr = -radius; dr <= radius; dr++) {
     for (let dc = -radius; dc <= radius; dc++) {
       if (dr * dr + dc * dc > radius * radius) continue;
@@ -130,6 +132,13 @@ export function updateBiome(state: GameState, wm: WorldManager): void {
   state.currentBiome = biome;
   state.statistics.biomesDiscovered.add(biome);
   if (state.settings.soundEnabled) audioManager.biomeEnter(biome);
+
+  // Trigger transition banner
+  state.biomeTransition = {
+    name: BIOME_DEFS[biome].label,
+    life: 3.0,
+    maxLife: 3.0,
+  };
 
   if (biome === 'crystal_cavern') unlockAchievement(state, 'crystal_cavern');
   if (biome === 'fossil_zone')    unlockAchievement(state, 'fossil_zone_found');
@@ -167,7 +176,10 @@ export function tryDig(
   }
 
   const baseCost = TILE_ENERGY_COST[tile.kind] ?? 2;
-  const energyCost = Math.max(0, baseCost - energyCostReduction(player.upgrades.reinforced_picks));
+  let energyCost = Math.max(0, baseCost - energyCostReduction(player.upgrades.reinforced_picks));
+  if (energyCost > 0 && state.prestigeCount) {
+    energyCost = Math.max(1, energyCost - state.prestigeCount);
+  }
   if (player.energy < energyCost) {
     spawnFloat(state, targetCol * TILE_SIZE + TILE_SIZE / 2, targetRow * TILE_SIZE, 'Low energy!', '#ff4444');
     if (state.settings.soundEnabled) audioManager.lowEnergy();
@@ -179,6 +191,9 @@ export function tryDig(
 
   // Damage calculation
   let dmg = shovelDamage(shovelLv);
+  if (state.activeModifiers?.includes('low_gravity')) {
+    dmg *= 2;
+  }
   let isCrit = false;
   if (critChance(player.upgrades.critical_chance) > Math.random()) {
     dmg *= 3;
@@ -201,13 +216,18 @@ export function tryDig(
   );
 
   if (isCrit) {
+    state.hitStopTimer = 0.045;
     spawnFloat(state, targetCol * TILE_SIZE + TILE_SIZE / 2, targetRow * TILE_SIZE - 8, 'CRIT!', '#ffd700');
-    player.shakeAmount = Math.max(player.shakeAmount, 5);
+    player.shakeAmount = Math.max(player.shakeAmount, 6);
   } else {
-    player.shakeAmount = Math.max(player.shakeAmount, 2);
+    player.shakeAmount = Math.max(player.shakeAmount, 2.5);
   }
 
   if (tile.hp <= 0) {
+    const isRare = ['ruby', 'sapphire', 'emerald', 'crystal', 'relic', 'artifact', 'void_stone', 'ancient_terminal', 'resonance_stabilizer'].includes(tile.kind);
+    if (isRare) {
+      state.hitStopTimer = 0.06;
+    }
     breakTile(state, wm, pm, targetRow, targetCol, tile.kind, dmg);
   }
 
@@ -281,21 +301,29 @@ function breakTile(
       spawnFloat(state, col * TILE_SIZE + TILE_SIZE / 2, row * TILE_SIZE - TILE_SIZE, `+${def.label}`, def.color);
       trackItemCollection(state, drop as ItemId, def.rarity);
 
-      // Win condition
+      // Win condition is now replaced with midgame event trigger
       if (drop === 'artifact') {
         state.secretFound = true;
         state.statistics.artifactsCollected++;
-        if (state.settings.soundEnabled) { audioManager.secret(); setTimeout(() => audioManager.win(), 800); }
-        state.screen = 'win';
+        if (state.settings.soundEnabled) audioManager.secret();
         unlockAchievement(state, 'found_artifact');
         unlockAchievement(state, 'mythic_find');
         pm.emitTreasure(col * TILE_SIZE + TILE_SIZE / 2, row * TILE_SIZE + TILE_SIZE / 2);
         if (state.playTime < 900) unlockAchievement(state, 'speed_runner');
+
+        spawnFloat(state, col * TILE_SIZE + TILE_SIZE / 2, row * TILE_SIZE - TILE_SIZE * 2, 'CORE ARTIFACT ACQUIRED!', '#ffd700', 1.4);
+        spawnFloat(state, col * TILE_SIZE + TILE_SIZE / 2, row * TILE_SIZE - TILE_SIZE * 3.5, 'Activate at surface terminal!', '#fbbf24', 1.2);
+
+        state.biomeTransition = {
+          name: 'Core Artifact Acquired',
+          life: 4.0,
+          maxLife: 4.0,
+        };
       }
     }
   }
 
-  // Chest gives coins + energy
+  // Chest gives coins + energy + endgame keys
   if (kind === 'chest') {
     const bonus = 200 + Math.floor(Math.random() * 400);
     player.money += bonus;
@@ -303,6 +331,21 @@ function breakTile(
     state.statistics.treasuresFound++;
     spawnFloat(state, col * TILE_SIZE + TILE_SIZE / 2, row * TILE_SIZE - TILE_SIZE * 2, `+$${bonus}`, '#ffd700');
     pm.emitTreasure(col * TILE_SIZE + TILE_SIZE / 2, row * TILE_SIZE + TILE_SIZE / 2);
+
+    const chunkDepth = WorldManager.tileToChunkRow(row);
+    if (chunkDepth === 10 && !player.inventory.some(s => s.itemId === 'facility_key')) {
+      player.inventory.push({ itemId: 'facility_key', qty: 1 });
+      spawnFloat(state, col * TILE_SIZE + TILE_SIZE / 2, row * TILE_SIZE - TILE_SIZE * 3, 'Found Facility Keycard!', '#a855f7', 1.2);
+      if (state.settings.soundEnabled) audioManager.discovery();
+    } else if (chunkDepth === 12 && !player.inventory.some(s => s.itemId === 'core_stabilizer')) {
+      player.inventory.push({ itemId: 'core_stabilizer', qty: 1 });
+      spawnFloat(state, col * TILE_SIZE + TILE_SIZE / 2, row * TILE_SIZE - TILE_SIZE * 3, 'Found Core Stabilizer!', '#f97316', 1.2);
+      if (state.settings.soundEnabled) audioManager.discovery();
+    } else if (chunkDepth === 14 && !player.inventory.some(s => s.itemId === 'fracture_shard')) {
+      player.inventory.push({ itemId: 'fracture_shard', qty: 1 });
+      spawnFloat(state, col * TILE_SIZE + TILE_SIZE / 2, row * TILE_SIZE - TILE_SIZE * 3, 'Found Fracture Shard!', '#ec4899', 1.2);
+      if (state.settings.soundEnabled) audioManager.discovery();
+    }
   }
 
   // Drill: splash damage to adjacent tiles
@@ -328,6 +371,11 @@ function breakTile(
 // ── Item collection ────────────────────────────────────────────────────────────
 function tryCollectItem(state: GameState, itemId: ItemId, qty = 1): boolean {
   const { player } = state;
+
+  if (state.activeModifiers?.includes('double_ore') && itemId !== 'facility_key' && itemId !== 'core_stabilizer' && itemId !== 'fracture_shard' && itemId !== 'artifact') {
+    qty *= 2;
+  }
+
   const cap = inventoryCapacity(player.upgrades.backpack);
   const current = player.inventory.reduce((s, sl) => s + sl.qty, 0);
   if (current + qty > cap) return false;
@@ -358,6 +406,10 @@ function trackItemCollection(state: GameState, itemId: ItemId, rarity: string): 
 
   updateQuestProgress(state, { type: 'collect', itemId, qty: 1 });
 
+  if (itemId === 'ruby' || itemId === 'sapphire' || itemId === 'emerald') {
+    updateQuestProgress(state, { type: 'collect_all_gems' });
+  }
+
   const coalCount    = state.statistics.itemsCollected['coal']    ?? 0;
   const goldCount    = state.statistics.itemsCollected['gold']    ?? 0;
   const crystalCount = state.statistics.itemsCollected['crystal'] ?? 0;
@@ -384,13 +436,21 @@ export function tryMove(
   if (ny < 0) return false;
 
   const target = wm.getTile(ny, nx);
-  if (!target || (target.kind !== 'air' && target.kind !== 'sell_point')) return false;
+  if (!target || (target.kind !== 'air' &&
+                  target.kind !== 'sell_point' &&
+                  target.kind !== 'ancient_terminal' &&
+                  target.kind !== 'resonance_stabilizer')) return false;
 
-  // Upward movement: requires jetpack OR empty column above
-  if (dy < 0 && player.upgrades.jetpack === 0) {
-    const current = wm.getTile(player.y, player.x);
-    if (!current || (current.kind !== 'air' && current.kind !== 'sell_point')) return false;
+  // Upward movement: requires jetpack OR wall to climb (solid tile on left or right)
+  if (dy < 0 && player.upgrades.jetpack === 0 && player.y > SURFACE_TILE_ROW) {
+    const leftTile = wm.getTile(player.y, player.x - 1);
+    const rightTile = wm.getTile(player.y, player.x + 1);
+    const hasWall = (leftTile && leftTile.kind !== 'air' && leftTile.kind !== 'sell_point') ||
+                    (rightTile && rightTile.kind !== 'air' && rightTile.kind !== 'sell_point');
+    if (!hasWall) return false;
   }
+
+  const prevDepth = WorldManager.tileDepth(player.y);
 
   if (dx > 0) player.facing = 'right';
   if (dx < 0) player.facing = 'left';
@@ -408,15 +468,38 @@ export function tryMove(
     audioManager.updateDepthMusic(depth);
   }
 
+  // Surface trip tracking for deep_diver achievement
+  if (ny <= SURFACE_TILE_ROW) {
+    player.surfacedThisTrip = true;
+  } else if (prevDepth === 0) {
+    player.surfacedThisTrip = false;
+  }
+
+  if (depth >= 50 && !player.surfacedThisTrip) {
+    unlockAchievement(state, 'deep_diver');
+  }
+
   // Track surface returns for surface_sprinter achievement
-  const prevDepth = WorldManager.tileDepth(player.y - dy);
   if (ny <= SURFACE_TILE_ROW && prevDepth > 0) {
     state.statistics.surfaceReturns++;
     if (state.statistics.surfaceReturns >= 20) unlockAchievement(state, 'surface_sprinter');
+    const quest = state.quests.find(q => q.id === 'q_no_surface_run');
+    if (quest && quest.status === 'active') {
+      quest.progress = 0;
+    }
   }
 
   if (target.kind === 'sell_point' && state.settings.autoSell) {
     sellInventory(state);
+  }
+  if (target.kind === 'ancient_terminal') {
+    interactAncientTerminal(state, wm);
+  }
+  if (target.kind === 'resonance_stabilizer') {
+    interactResonanceStabilizer(state);
+  }
+  if (state.activeModifiers?.includes('low_gravity')) {
+    player.energy = Math.max(0, player.energy - 1);
   }
 
   revealAround(state, wm);
@@ -433,10 +516,10 @@ export function useTeleport(state: GameState, wm: WorldManager): boolean {
   const startCol = Math.floor(totalCols / 2);
   state.player.x = startCol;
   state.player.y = SURFACE_TILE_ROW - 1;
+  state.player.surfacedThisTrip = true;
   revealAround(state, wm);
   updateBiome(state, wm);
   if (state.settings.soundEnabled) audioManager.teleport();
-  unlockAchievement(state, 'jetpack_user');
   return true;
 }
 
@@ -450,6 +533,10 @@ export function sellInventory(state: GameState): number {
     const def = ITEM_DEFS[slot.itemId];
     if (def.sellValue > 0) {
       let value = def.sellValue * slot.qty;
+      // Prestige sell bonus
+      if (state.prestigeCount) {
+        value = Math.round(value * (1 + state.prestigeCount * 0.5));
+      }
       // Apply permanent sell multiplier bonuses
       for (const b of player.permanentBonuses) {
         if (b.type === 'sell_multiplier') value = Math.round(value * (1 + b.value));
@@ -462,6 +549,7 @@ export function sellInventory(state: GameState): number {
       }
       if (state.mode === 'double_treasure') value *= 2;
       total += value;
+      updateQuestProgress(state, { type: 'sell_item', itemId: slot.itemId, qty: slot.qty });
     }
   }
   if (total === 0) return 0;
@@ -499,6 +587,9 @@ export function buyUpgrade(state: GameState, id: UpgradeId): boolean {
   const level = player.upgrades[id];
   if (level >= def.maxLevel) return false;
 
+  const locked = (def.unlockDepth ?? 0) > player.deepestDepth;
+  if (locked) return false;
+
   const cost = upgradeCost(id, level);
   if (player.money < cost) return false;
 
@@ -528,6 +619,9 @@ export function buyUpgrade(state: GameState, id: UpgradeId): boolean {
   if (allBought) unlockAchievement(state, 'all_upgrades');
 
   updateQuestProgress(state, { type: 'buy_upgrades', count: 1 });
+  if (id === 'battery' && player.upgrades.battery >= 6) {
+    updateQuestProgress(state, { type: 'max_battery' });
+  }
 
   return true;
 }
@@ -567,6 +661,15 @@ export function tickFloatTexts(state: GameState, dt: number): void {
   let hasExpired = false;
   for (const f of state.floatTexts) if (f.life <= 0) { hasExpired = true; break; }
   if (hasExpired) state.floatTexts = state.floatTexts.filter(f => f.life > 0);
+}
+
+export function tickBiomeTransition(state: GameState, dt: number): void {
+  if (state.biomeTransition) {
+    state.biomeTransition.life -= dt;
+    if (state.biomeTransition.life <= 0) {
+      state.biomeTransition = undefined;
+    }
+  }
 }
 
 // ── Dynamic event tick ────────────────────────────────────────────────────────
@@ -843,11 +946,36 @@ export function updateQuestProgress(
       q.progress += event.qty ?? 0;
       if (q.progress >= obj.count) claimQuestIfDone(state, q.id);
     } else if (obj.type === 'depth' && event.type === 'depth' && (event.depth ?? 0) >= obj.depth) {
-      q.progress = obj.depth;
-      claimQuestIfDone(state, q.id);
+      if (q.id === 'q_speed_50') {
+        if (state.playTime <= 300) {
+          q.progress = obj.depth;
+          claimQuestIfDone(state, q.id);
+        }
+      } else {
+        q.progress = obj.depth;
+        claimQuestIfDone(state, q.id);
+      }
     } else if (obj.type === 'buy_upgrades' && event.type === 'buy_upgrades') {
       q.progress += event.count ?? 0;
       if (q.progress >= obj.count) claimQuestIfDone(state, q.id);
+    } else if (obj.type === 'sell_item' && event.type === 'sell_item' && event.itemId === obj.itemId) {
+      q.progress += event.qty ?? 0;
+      if (q.progress >= obj.count) claimQuestIfDone(state, q.id);
+    } else if (obj.type === 'max_battery') {
+      if (state.player.upgrades.battery >= 6) {
+        q.progress = 1;
+        claimQuestIfDone(state, q.id);
+      }
+    } else if (obj.type === 'collect_all_gems' && event.type === 'collect_all_gems') {
+      const hasRuby = (state.statistics.itemsCollected['ruby'] ?? 0) >= 1;
+      const hasSapphire = (state.statistics.itemsCollected['sapphire'] ?? 0) >= 1;
+      const hasEmerald = (state.statistics.itemsCollected['emerald'] ?? 0) >= 1;
+      let count = 0;
+      if (hasRuby) count++;
+      if (hasSapphire) count++;
+      if (hasEmerald) count++;
+      q.progress = count;
+      if (count >= 3) claimQuestIfDone(state, q.id);
     }
   }
 }
@@ -885,4 +1013,104 @@ function claimQuestIfDone(state: GameState, id: QuestId): void {
 
 export function playerDepth(player: Player): number {
   return WorldManager.tileDepth(player.y);
+}
+
+export function interactAncientTerminal(state: GameState, wm: WorldManager): void {
+  const { player } = state;
+  
+  // Case 1: Has artifact, activate Facility
+  if (player.inventory.some(s => s.itemId === 'artifact') && !state.artifactActivated) {
+    player.inventory = player.inventory.filter(s => s.itemId !== 'artifact');
+    state.artifactActivated = true;
+    wm.artifactActivated = true;
+    
+    // Clear cached deep chunks (cy >= 10)
+    for (const key of Array.from(state.chunks.keys())) {
+      const [, cyStr] = key.split(',');
+      if (parseInt(cyStr) >= 10) {
+        state.chunks.delete(key);
+      }
+    }
+    
+    if (state.settings.soundEnabled) audioManager.secret();
+    player.shakeAmount = 15;
+    spawnFloat(state, player.x * TILE_SIZE + TILE_SIZE / 2, player.y * TILE_SIZE - TILE_SIZE, 'OVERLINK ESTABLISHED!', '#3b82f6', 1.3);
+    state.biomeTransition = {
+      name: 'ANCIENT FACILITY UNLOCKED',
+      life: 4.0,
+      maxLife: 4.0,
+    };
+    return;
+  }
+  
+  // Case 2: Has facility_key, unlock World Core
+  if (player.inventory.some(s => s.itemId === 'facility_key') && !state.facilityUnlocked) {
+    player.inventory = player.inventory.filter(s => s.itemId !== 'facility_key');
+    state.facilityUnlocked = true;
+    wm.facilityUnlocked = true;
+    
+    // Clear cached core chunks (cy >= 12)
+    for (const key of Array.from(state.chunks.keys())) {
+      const [, cyStr] = key.split(',');
+      if (parseInt(cyStr) >= 12) {
+        state.chunks.delete(key);
+      }
+    }
+    
+    if (state.settings.soundEnabled) audioManager.secret();
+    player.shakeAmount = 15;
+    spawnFloat(state, player.x * TILE_SIZE + TILE_SIZE / 2, player.y * TILE_SIZE - TILE_SIZE, 'GEOTHERMAL Core Online!', '#f97316', 1.3);
+    state.biomeTransition = {
+      name: 'WORLD CORE UNLOCKED',
+      life: 4.0,
+      maxLife: 4.0,
+    };
+    return;
+  }
+  
+  if (!state.artifactActivated) {
+    spawnFloat(state, player.x * TILE_SIZE + TILE_SIZE / 2, player.y * TILE_SIZE - TILE_SIZE, 'Requires Core Artifact', '#ff4444');
+  } else if (!state.facilityUnlocked) {
+    spawnFloat(state, player.x * TILE_SIZE + TILE_SIZE / 2, player.y * TILE_SIZE - TILE_SIZE, 'Requires Facility Keycard', '#a855f7');
+  } else {
+    spawnFloat(state, player.x * TILE_SIZE + TILE_SIZE / 2, player.y * TILE_SIZE - TILE_SIZE, 'Terminal fully initialized', '#44ffaa');
+  }
+}
+
+export function interactResonanceStabilizer(state: GameState): void {
+  state.atEndgameStabilizer = true;
+}
+
+export function tickHazards(state: GameState, wm: WorldManager, dt: number): void {
+  const { player } = state;
+  if (player.y <= SURFACE_TILE_ROW + 10) return;
+  
+  const coords = [
+    [player.y, player.x],
+    [player.y - 1, player.x],
+    [player.y + 1, player.x],
+    [player.y, player.x - 1],
+    [player.y, player.x + 1],
+  ];
+  
+  let totalDrain = 0;
+  for (const [r, c] of coords) {
+    const tile = wm.getTile(r, c);
+    if (tile) {
+      if (tile.kind === 'security_grid') {
+        totalDrain += 1.5 * dt;
+      } else if (tile.kind === 'magma_rock' && state.currentBiome === 'world_core') {
+        totalDrain += 1.0 * dt;
+      } else if (tile.kind === 'void_stone' && state.currentBiome === 'reality_fracture') {
+        totalDrain += 2.0 * dt;
+      }
+    }
+  }
+  
+  if (totalDrain > 0) {
+    player.energy = Math.max(0, player.energy - totalDrain);
+    if (state.tick % 90 === 0) {
+      spawnFloat(state, player.x * TILE_SIZE + TILE_SIZE / 2, player.y * TILE_SIZE - TILE_SIZE, '⚡ HAZARD DRAIN!', '#ef4444', 0.95);
+    }
+  }
 }

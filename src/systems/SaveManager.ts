@@ -1,9 +1,11 @@
 import type {
   GameState, SaveData, SerializedPlayer, SerializedChunk,
-  SerializedStatistics, Chunk, Tile,
+  SerializedStatistics, Chunk, Tile, UpgradeId, AchievementId,
 } from '../types';
 import { CHUNK_SIZE } from '../types';
 import { defaultSettings } from '../data/defaults';
+import { ACHIEVEMENT_DEFS } from '../data/achievements';
+import { QUEST_ORDER } from '../data/quests';
 
 const SAVE_KEY = 'deepdig_save_v2';
 const SAVE_VERSION = 2;
@@ -62,6 +64,7 @@ export class SaveManager {
       facing: state.player.facing,
       teleportCharges: state.player.teleportCharges,
       permanentBonuses: [...state.player.permanentBonuses],
+      surfacedThisTrip: state.player.surfacedThisTrip,
     };
 
     const stats: SerializedStatistics = {
@@ -83,6 +86,12 @@ export class SaveManager {
       secretFound: state.secretFound,
       playTime: state.playTime,
       currentBiome: state.currentBiome,
+      artifactActivated: state.artifactActivated,
+      facilityUnlocked: state.facilityUnlocked,
+      prestigeCount: state.prestigeCount,
+      unlockedEnding: state.unlockedEnding,
+      chosenSeed: state.chosenSeed,
+      activeModifiers: state.activeModifiers,
     };
   }
 
@@ -125,6 +134,34 @@ export class SaveManager {
     };
 
     const p = data.player;
+
+    const defaultUpgrades = {
+      shovel: 0, backpack: 0, battery: 0, lantern: 0, boots: 0,
+      drill: 0, jetpack: 0, scanner: 0, critical_chance: 0,
+      ore_detector: 0, teleport: 0, artifact_sense: 0, reinforced_picks: 0,
+    };
+    const upgrades = { ...defaultUpgrades, ...p.upgrades };
+    delete (upgrades as any).auto_collect;
+
+    const achievements = Object.keys(ACHIEVEMENT_DEFS).map(id => {
+      const existing = data.achievements?.find(a => a.id === id);
+      return {
+        id: id as AchievementId,
+        unlocked: existing ? existing.unlocked : false,
+        unlockedAt: existing ? existing.unlockedAt : undefined,
+        progress: existing ? existing.progress : undefined,
+      };
+    });
+
+    const quests = QUEST_ORDER.map((id, i) => {
+      const existing = data.quests?.find(q => q.id === id);
+      return {
+        id,
+        status: existing ? existing.status : (i < 3 ? 'active' as const : 'locked' as const),
+        progress: existing ? existing.progress : 0,
+      };
+    });
+
     const state: GameState = {
       screen: 'playing',
       mode: data.mode ?? 'normal',
@@ -135,20 +172,21 @@ export class SaveManager {
         money: p.money,
         inventory: p.inventory,
         inventoryCapacity: p.inventoryCapacity,
-        upgrades: p.upgrades,
+        upgrades: upgrades as Record<UpgradeId, number>,
         deepestDepth: p.deepestDepth,
         facing: p.facing ?? 'right',
         teleportCharges: p.teleportCharges ?? 0,
         shakeAmount: 0,
         permanentBonuses: p.permanentBonuses ?? [],
+        surfacedThisTrip: p.surfacedThisTrip ?? true,
       },
       chunks,
       seed: data.seed,
       worldWidthChunks: 3,
       tick: 0,
       floatTexts: [],
-      achievements: data.achievements,
-      quests: data.quests,
+      achievements,
+      quests,
       statistics: stats,
       settings: { ...defaultSettings(), ...data.settings },
       secretFound: data.secretFound,
@@ -156,6 +194,12 @@ export class SaveManager {
       challengeModeUnlocked: data.secretFound,
       playTime: data.playTime,
       currentBiome: data.currentBiome ?? 'surface',
+      artifactActivated: data.artifactActivated ?? false,
+      facilityUnlocked: data.facilityUnlocked ?? false,
+      prestigeCount: data.prestigeCount ?? 0,
+      unlockedEnding: data.unlockedEnding,
+      chosenSeed: data.chosenSeed,
+      activeModifiers: data.activeModifiers ?? [],
       // New gameplay fields — defaults on load
       activeEvents: [],
       eventCooldown: 30,

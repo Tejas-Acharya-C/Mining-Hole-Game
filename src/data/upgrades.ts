@@ -43,12 +43,6 @@ export const UPGRADE_DEFS: Record<UpgradeId, UpgradeDef> = {
     maxLevel: 4, baseCost: 500, costMultiplier: 3.2, category: 'exploration',
     unlockDepth: 20,
   },
-  auto_collect: {
-    id: 'auto_collect', label: 'Auto-Collector', icon: '🧲',
-    description: 'Automatically collects items within radius tiles.',
-    maxLevel: 3, baseCost: 600, costMultiplier: 3.8, category: 'utility',
-    unlockDepth: 40,
-  },
   critical_chance: {
     id: 'critical_chance', label: 'Critical Strike', icon: '⚡',
     description: '10% critical hit chance per level. Crits deal 3× damage.',
@@ -105,8 +99,12 @@ export function inventoryCapacity(level: number): number {
 }
 
 /** Light radius in tiles. */
-export function lightRadius(level: number): number {
-  return 5 + level * 2;
+export function lightRadius(level: number, activeModifiers?: string[]): number {
+  let r = 5 + level * 2;
+  if (activeModifiers?.includes('darkness')) {
+    r = Math.max(2, Math.floor(r / 2));
+  }
+  return r;
 }
 
 /** Move cooldown in ms. Floor at 60ms. */

@@ -1,97 +1,201 @@
 .root {
   position: absolute; inset: 0; overflow-y: auto;
-  background: radial-gradient(ellipse at 50% 20%, #1a0a30 0%, #05050a 65%);
+  background: radial-gradient(ellipse at 50% 20%, #15082f 0%, #030206 75%);
   display: flex; align-items: flex-start; justify-content: center;
-  padding: 16px 0; z-index: 100;
+  padding: 24px 0; z-index: 100;
+  font-family: var(--font-primary);
 }
+
 .panel {
   position: relative;
-  background: rgba(8,5,20,0.94);
-  border: 1px solid rgba(180,100,255,0.3);
-  border-radius: 20px; padding: 28px 38px;
-  width: min(560px, 96vw); text-align: center;
-  box-shadow: 0 0 100px rgba(140,50,255,0.22); overflow: hidden;
+  background: rgba(10, 6, 22, 0.94);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 20px; padding: 32px 42px;
+  width: min(580px, 95vw); text-align: center;
+  box-shadow: 
+    0 10px 50px rgba(0,0,0,0.85),
+    0 0 50px rgba(168, 85, 247, 0.15);
+  overflow: hidden;
+  animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+@keyframes slideUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
 .glow {
   position: absolute; top: -60px; left: 50%; transform: translateX(-50%);
   width: 260px; height: 260px;
-  background: radial-gradient(circle, rgba(180,100,255,0.22), transparent 70%);
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.22), transparent 70%);
   pointer-events: none; animation: glowPulse 3s ease-in-out infinite;
 }
+
 @keyframes glowPulse {
   0%, 100% { opacity: 0.7; transform: translateX(-50%) scale(1); }
   50%       { opacity: 1;   transform: translateX(-50%) scale(1.08); }
 }
+
 .artifactCanvas {
-  display: block; margin: 0 auto -10px;
-  width: 100%; max-width: 400px; height: 80px;
+  display: block; margin: 0 auto 5px;
+  width: 100%; max-width: 400px; height: 90px;
 }
 
 .gradeRow {
-  display: flex; align-items: center; gap: 14px;
-  justify-content: center; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 16px;
+  justify-content: center; margin-bottom: 20px;
 }
-.grade { font-size: 52px; font-weight: 900; line-height: 1; }
+
+.grade { 
+  font-size: 58px; 
+  font-weight: 900; 
+  line-height: 1; 
+  font-family: var(--font-tech);
+  text-shadow: 0 0 15px currentColor;
+}
+
 .gradeInfo { display: flex; flex-direction: column; text-align: left; gap: 2px; }
-.gradeLabel { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; }
-.gradeTime  { font-size: 13px; color: #94a3b8; }
 
-.title { font-size: 30px; font-weight: 900; color: #e2e8f0; margin-bottom: 16px; }
-
-.narrative { margin-bottom: 22px; }
-.narrativeLine {
-  font-size: 13px; color: #94a3b8; line-height: 1.9;
-  font-style: italic;
-  animation: fadeUp 0.7s ease-out both;
+.gradeLabel { 
+  font-family: var(--font-tech);
+  font-size: 11px; 
+  text-transform: uppercase; 
+  letter-spacing: 1.5px; 
+  color: #71717a; 
 }
+
+.gradeTime { 
+  font-size: 13.5px; 
+  color: #a1a1aa; 
+  font-weight: 600;
+}
+
+.title { 
+  font-size: 26px; 
+  font-weight: 900; 
+  color: #f1f5f9; 
+  margin-bottom: 18px; 
+  letter-spacing: 1px;
+  text-shadow: 0 0 20px rgba(168, 85, 247, 0.45);
+}
+
+.narrative { margin-bottom: 24px; min-height: 96px; }
+
+.narrativeLine {
+  font-size: 12.5px; color: #a1a1aa; line-height: 1.8;
+  font-style: italic;
+  animation: fadeUp 0.8s ease-out both;
+}
+
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
 .statsGrid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 22px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 24px;
 }
-.statCard {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 10px; padding: 10px 6px;
-  display: flex; flex-direction: column; gap: 3px;
-}
-.statVal   { font-size: 17px; font-weight: 800; color: #c084fc; }
-.statLabel { font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
 
-.achSection { text-align: left; margin-bottom: 18px; }
+.statCard {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px; padding: 12px 8px;
+  display: flex; flex-direction: column; gap: 4px;
+  transition: all var(--transition-normal);
+}
+
+.statCard:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255,255,255,0.12);
+}
+
+.statVal { 
+  font-size: 18px; 
+  font-weight: bold; 
+  color: var(--color-purple); 
+  font-family: var(--font-tech);
+  text-shadow: 0 0 8px rgba(168, 85, 247, 0.25);
+}
+
+.statLabel { 
+  font-family: var(--font-tech);
+  font-size: 9px; 
+  color: #71717a; 
+  text-transform: uppercase; 
+  letter-spacing: 1px; 
+}
+
+.achSection { text-align: left; margin-bottom: 22px; }
+
 .achTitle {
-  font-size: 10px; text-transform: uppercase;
-  letter-spacing: 1px; color: #475569; margin-bottom: 8px;
+  font-family: var(--font-tech);
+  font-size: 11px; text-transform: uppercase;
+  letter-spacing: 1.5px; color: var(--color-gold); margin-bottom: 10px;
+  border-left: 2px solid var(--color-gold);
+  padding-left: 8px;
 }
+
 .achGrid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 3px;
-  max-height: 180px; overflow-y: auto;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+  max-height: 160px; overflow-y: auto;
+  padding-right: 2px;
 }
-.achItem { font-size: 11px; padding: 4px 8px; border-radius: 5px; }
-.achOn   { background: rgba(196,132,252,0.1); color: #c084fc; border: 1px solid rgba(196,132,252,0.18); }
-.achOff  { color: #334155; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); }
+
+.achItem { 
+  font-size: 11px; padding: 6px 10px; border-radius: 6px; 
+  font-weight: 600;
+  transition: all var(--transition-normal);
+}
+
+.achOn { 
+  background: rgba(168, 85, 247, 0.08); 
+  color: #d8b4fe; 
+  border: 1px solid rgba(168, 85, 247, 0.22); 
+  box-shadow: 0 0 6px rgba(168, 85, 247, 0.15);
+}
+
+.achOff { 
+  color: #4b5563; 
+  background: rgba(255, 255, 255, 0.01); 
+  border: 1px solid rgba(255, 255, 255, 0.03); 
+}
 
 .unlockedBanner {
-  background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25);
-  border-radius: 8px; padding: 8px 12px;
-  font-size: 12px; color: #86efac; margin-bottom: 16px;
+  background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 8px; padding: 8px 16px;
+  font-family: var(--font-tech);
+  font-size: 12px; color: var(--color-green); margin-bottom: 20px;
+  letter-spacing: 0.5px;
+  font-weight: bold;
 }
 
 .buttons { display: flex; gap: 10px; }
+
 .btnAgain {
-  flex: 1; background: linear-gradient(135deg,#6366f1,#8b5cf6);
-  color: #fff; border: none; padding: 13px;
-  border-radius: 10px; font-size: 14px; font-weight: 700;
-  cursor: pointer; transition: transform 0.1s;
+  flex: 1; background: linear-gradient(135deg, #4f46e5, #7e22ce);
+  color: #fff; border: none; padding: 12px 18px;
+  border-radius: 8px; font-size: 13.5px; font-weight: bold;
+  letter-spacing: 0.5px;
+  cursor: pointer; transition: all var(--transition-normal);
+  box-shadow: 0 4px 16px rgba(126, 34, 206, 0.25);
 }
-.btnAgain:hover { transform: translateY(-2px); }
+
+.btnAgain:hover { 
+  transform: translateY(-2px); 
+  box-shadow: 0 6px 22px rgba(126, 34, 206, 0.45);
+}
+
 .btnChallenge {
-  flex: 1; background: linear-gradient(135deg,#dc2626,#b91c1c);
-  color: #fff; border: none; padding: 13px;
-  border-radius: 10px; font-size: 14px; font-weight: 700;
-  cursor: pointer; transition: transform 0.1s;
+  flex: 1; background: linear-gradient(135deg, #e11d48, #be123c);
+  color: #fff; border: none; padding: 12px 18px;
+  border-radius: 8px; font-size: 13.5px; font-weight: bold;
+  letter-spacing: 0.5px;
+  cursor: pointer; transition: all var(--transition-normal);
+  box-shadow: 0 4px 16px rgba(225, 29, 72, 0.25);
 }
-.btnChallenge:hover { transform: translateY(-2px); }
+
+.btnChallenge:hover { 
+  transform: translateY(-2px); 
+  box-shadow: 0 6px 22px rgba(225, 29, 72, 0.45);
+}
+

@@ -4,46 +4,114 @@ import styles from './TitleScreen.module.css';
 
 interface Props {
   hasSave: boolean;
-  onNewGame: () => void;
+  onNewGame: (seed?: number, modifiers?: string[]) => void;
   onContinue: () => void;
-  onChallenge: (mode: GameMode) => void;
+  onChallenge: (mode: GameMode, seed?: number, modifiers?: string[]) => void;
+  challengeModeUnlocked: boolean;
+  prestigeCount: number;
 }
 
-export default function TitleScreen({ hasSave, onNewGame, onContinue, onChallenge }: Props) {
+export default function TitleScreen({
+  hasSave, onNewGame, onContinue, onChallenge, challengeModeUnlocked, prestigeCount,
+}: Props) {
   const [showModes, setShowModes] = useState(false);
   const [showControls, setShowControls] = useState(false);
+  const [seedText, setSeedText] = useState('');
+  const [activeMods, setActiveMods] = useState<string[]>([]);
 
   const MODES: { id: GameMode; label: string; desc: string; color: string }[] = [
-    { id: 'hard',                label: '💀 Hard Mode',         desc: 'Slower energy regen, no mercy.', color: '#ef4444' },
-    { id: 'no_battery',          label: '🔋 Dead Battery',       desc: 'Energy barely regenerates.',     color: '#f59e0b' },
-    { id: 'no_shop',             label: '🚫 No Shop',            desc: 'No upgrades allowed.',           color: '#8b5cf6' },
-    { id: 'randomized_economy',  label: '🎲 Chaos Market',       desc: 'Item prices fluctuate wildly.',  color: '#06b6d4' },
-    { id: 'double_treasure',     label: '💎 Double Treasure',    desc: 'Ores worth 2×, but rarer.',      color: '#22c55e' },
+    { id: 'hard',                label: '💀 Hard Mode',         desc: 'Slower energy regen, no mercy.', color: 'var(--color-red)' },
+    { id: 'no_battery',          label: '🔋 Dead Battery',       desc: 'Energy barely regenerates.',     color: 'var(--color-orange)' },
+    { id: 'no_shop',             label: '🚫 No Shop',            desc: 'No upgrades allowed.',           color: 'var(--color-purple)' },
+    { id: 'randomized_economy',  label: '🎲 Chaos Market',       desc: 'Item prices fluctuate wildly.',  color: 'var(--color-cyan)' },
+    { id: 'double_treasure',     label: '💎 Double Treasure',    desc: 'Ores worth 2×, but rarer.',      color: 'var(--color-green)' },
   ];
+
+  const parsedSeed = seedText ? parseInt(seedText) : undefined;
 
   return (
     <div className={styles.root}>
-      <div className={styles.stars} aria-hidden />
+      <div className={styles.gridOverlay} aria-hidden />
+      <div className={styles.ambientGlow} aria-hidden />
 
       <div className={styles.panel}>
-        <div className={styles.logo}>
-          {'DEEP DIG'.split('').map((ch, i) => (
-            <span key={i} className={styles.logoChar} style={{ '--i': i } as React.CSSProperties}>
-              {ch === ' ' ? '\u00A0' : ch}
-            </span>
-          ))}
+        <div className={styles.logoContainer}>
+          <div className={styles.logo}>
+            {'VOIDCORE'.split('').map((ch, i) => (
+              <span key={i} className={styles.logoChar} style={{ '--i': i } as React.CSSProperties}>
+                {ch}
+              </span>
+            ))}
+          </div>
+          <div className={styles.subLogo}>DEEP ALCHEMY</div>
         </div>
-        <p className={styles.tagline}>Dig down. Sell high. Find the secret.</p>
+        <p className={styles.tagline}>DRILL DEEP. HARNESS THE VOID. STABILIZE THE WORLD CORE.</p>
+
+        {prestigeCount > 0 && (
+          <div className={styles.prestigeBadge}>
+            👑 Prestige Rank {prestigeCount} (+{prestigeCount * 50}% sell multiplier)
+          </div>
+        )}
+
+        {/* Custom seed and modifiers panel (only if won at least once) */}
+        {challengeModeUnlocked && (
+          <div className={styles.modifiersSection}>
+            <div className={styles.inputGroup}>
+              <label className={styles.sectionLabel}>
+                SURFACE BEACON SEED
+              </label>
+              <input
+                type="text"
+                placeholder="PROJECTION SEED (RANDOM)"
+                value={seedText}
+                onChange={(e) => setSeedText(e.target.value.replace(/\D/g, ''))}
+                className={styles.seedInput}
+              />
+            </div>
+
+            <div className={styles.inputGroup} style={{ marginTop: '14px' }}>
+              <label className={styles.sectionLabel} style={{ color: 'var(--color-purple)' }}>
+                ENVIRONMENTAL MODIFIERS
+              </label>
+              <div className={styles.modsGrid}>
+                {[
+                  { id: 'low_gravity', label: '🚀 Low Gravity', desc: '2x Dmg, moves drain energy' },
+                  { id: 'darkness', label: '🌑 Deep Darkness', desc: 'Lantern radius halved' },
+                  { id: 'double_ore', label: '💎 Rich Veins', desc: '2x Ore drops' },
+                  { id: 'hardcore', label: '💥 Hardcore Collapse', desc: '0 energy loses bag & 50% cash' },
+                ].map((mod) => {
+                  const active = activeMods.includes(mod.id);
+                  return (
+                    <button
+                      key={mod.id}
+                      onClick={() => {
+                        setActiveMods(prev =>
+                          prev.includes(mod.id) ? prev.filter(x => x !== mod.id) : [...prev, mod.id]
+                        );
+                      }}
+                      className={`${styles.modButton} ${active ? styles.modActive : ''}`}
+                    >
+                      <div className={styles.modLabel}>{mod.label}</div>
+                      <div className={styles.modDesc}>{mod.desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className={styles.buttons}>
           {hasSave && (
-            <button className={styles.btnPrimary} onClick={onContinue}>▶ Continue</button>
+            <button className={styles.btnPrimary} onClick={onContinue}>
+              <span className={styles.btnIcon}>▶</span> CONTINUE EXPEDITION
+            </button>
           )}
-          <button className={hasSave ? styles.btnSecondary : styles.btnPrimary} onClick={onNewGame}>
-            {hasSave ? '⟳ New Game' : '▶ Start Digging'}
+          <button className={hasSave ? styles.btnSecondary : styles.btnPrimary} onClick={() => onNewGame(parsedSeed, activeMods)}>
+            <span className={styles.btnIcon}>{hasSave ? '⟳' : '▶'}</span> {hasSave ? 'RE-DEPLOY PROJECT' : 'INITIATE EXPEDITION'}
           </button>
           <button className={styles.btnSecondary} onClick={() => setShowModes(v => !v)}>
-            ⚡ {showModes ? 'Hide Modes' : 'Challenge Modes'}
+            <span className={styles.btnIcon}>⚡</span> {showModes ? 'CLOSE CHALLENGES' : 'CHALLENGE MODES'}
           </button>
         </div>
 
@@ -53,10 +121,10 @@ export default function TitleScreen({ hasSave, onNewGame, onContinue, onChalleng
               <button
                 key={m.id}
                 className={styles.modeCard}
-                style={{ borderColor: m.color + '44' }}
-                onClick={() => onChallenge(m.id)}
+                style={{ borderColor: m.color + '33' }}
+                onClick={() => onChallenge(m.id, parsedSeed, activeMods)}
               >
-                <span className={styles.modeLabel} style={{ color: m.color }}>{m.label}</span>
+                <span className={styles.modeCardLabel} style={{ color: m.color }}>{m.label}</span>
                 <span className={styles.modeDesc}>{m.desc}</span>
               </button>
             ))}
@@ -64,21 +132,21 @@ export default function TitleScreen({ hasSave, onNewGame, onContinue, onChalleng
         )}
 
         <button className={styles.toggleBtn} onClick={() => setShowControls(v => !v)}>
-          {showControls ? '▲ Hide Controls' : '▼ Controls'}
+          {showControls ? '▲ HIDE SYSTEM READOUT' : '▼ SHOW CONTROLS'}
         </button>
 
         {showControls && (
           <div className={styles.controls}>
             <div className={styles.ctrlGrid}>
-              <span>Move</span>        <span>Arrow Keys / WASD</span>
-              <span>Dig</span>         <span>Z / Space or click tile</span>
-              <span>Use Energy Cell</span><span>F</span>
-              <span>Sell</span>        <span>E at surface</span>
-              <span>Shop</span>        <span>B at surface</span>
-              <span>Inventory</span>   <span>I</span>
-              <span>Quests</span>      <span>Q</span>
-              <span>Teleport</span>    <span>T (if charged)</span>
-              <span>Pause</span>       <span>Esc / P</span>
+              <span>THRUST / DIG DIRECTION</span>  <span>W,A,S,D / Arrow Keys</span>
+              <span>ACTIVATE DRILL</span>          <span>Z / Space / Left Click tile</span>
+              <span>RESTORE CELL</span>            <span>F (Consumes energy cell)</span>
+              <span>SELL METALS</span>             <span>E (Stand on Surface Depot)</span>
+              <span>UPGRADE SUIT</span>            <span>B (Stand on Surface Depot)</span>
+              <span>INVENTORY STORAGE</span>       <span>I</span>
+              <span>MISSION QUESTS</span>          <span>Q</span>
+              <span>SURFACE BEACON</span>          <span>T (Teleport charges required)</span>
+              <span>PAUSE TERMINAL</span>          <span>Esc / P</span>
             </div>
           </div>
         )}
@@ -86,3 +154,4 @@ export default function TitleScreen({ hasSave, onNewGame, onContinue, onChalleng
     </div>
   );
 }
+

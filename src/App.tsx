@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { GameState, UpgradeId, AchievementId } from './types';
+import { CHUNK_SIZE } from './types';
 import {
   createInitialState, tryDig, tryMove, tickEnergy, tickScreenShake,
   tickFloatTexts, revealAround, sellInventory, buyUpgrade,
   unlockAchievement, useTeleport, playerDepth,
-  tickEvents, consumeEnergyCell,
+  tickEvents, consumeEnergyCell, tickBiomeTransition,
+  tickHazards, updateBiome, spawnFloat,
 } from './systems/GameManager';
 import { SaveManager } from './systems/SaveManager';
 import { WorldManager } from './systems/WorldManager';
@@ -12,9 +14,10 @@ import { ParticleManager } from './systems/ParticleManager';
 import { audioManager } from './systems/AudioManager';
 import { render, computeCamera } from './engine/renderer';
 import { attachInputListeners, isAnyKeyDown, getInput, consumeClick } from './engine/input';
-import { TILE_SIZE, SURFACE_TILE_ROW } from './data/tiles';
+import { TILE_SIZE, SURFACE_TILE_ROW, WORLD_WIDTH_CHUNKS } from './data/tiles';
 import { moveCooldown, digCooldown } from './data/upgrades';
 import { ACHIEVEMENT_DEFS } from './data/achievements';
+import { BIOME_DEFS } from './data/biomes';
 
 import TitleScreen from './components/TitleScreen';
 import HUD from './components/HUD';
@@ -28,6 +31,7 @@ import TutorialHint from './components/TutorialHint';
 import StatisticsPanel from './components/StatisticsPanel';
 import QuestsPanel from './components/QuestsPanel';
 import TouchControls from './components/TouchControls';
+import EndgameModal from './components/EndgameModal';
 
 // ── Singleton managers live outside React to avoid re-creation ────────────────
 let wmInstance: WorldManager | null = null;
@@ -60,11 +64,16 @@ export default function App() {
       return;
     }
 
-    const dt = Math.min((timestamp - lastTimeRef.current) / 1000, 0.05);
+    let dt = Math.min((timestamp - lastTimeRef.current) / 1000, 0.05);
     lastTimeRef.current = timestamp;
     fpsRef.current = dt > 0 ? Math.round(1 / dt) : 60;
 
     if (state.screen === 'playing') {
+      // Reduced motion bypasses hit stop freezes
+      if (state.hitStopTimer && state.hitStopTimer > 0 && !state.settings.reducedMotion) {
+        state.hitStopTimer -= dt;
+        dt = 0;
+      }
       state.tick++;
       state.playTime += dt;
       state.statistics.playTimeSeconds += dt;
@@ -98,7 +107,17 @@ export default function App() {
       // ── Dig target direction ──
       let digRow = state.player.y + 1;
       let digCol = state.player.x;
-      if      (isAnyKeyDown('ArrowLeft',  'KeyA')) { digCol = state.player.x - 1; digRow = state.player.y; }
+      const jx = inp.touchJoyX;
+      const jy = inp.touchJoyY;
+      if (Math.abs(jx) > 0.35 || Math.abs(jy) > 0.35) {
+        if (Math.abs(jx) >= Math.abs(jy)) {
+          digCol = state.player.x + (jx > 0 ? 1 : -1);
+          digRow = state.player.y;
+        } else {
+          digRow = state.player.y + (jy > 0 ? 1 : -1);
+          digCol = state.player.x;
+        }
+      } else if (isAnyKeyDown('ArrowLeft',  'KeyA')) { digCol = state.player.x - 1; digRow = state.player.y; }
       else if (isAnyKeyDown('ArrowRight', 'KeyD')) { digCol = state.player.x + 1; digRow = state.player.y; }
       else if (isAnyKeyDown('ArrowUp',    'KeyW')) { digRow = state.player.y - 1; digCol = state.player.x; }
 
@@ -111,10 +130,9 @@ export default function App() {
         }
 
         // Touch dig button — respects same cooldown as keyboard
-        if (inp.touchDigPressed && !inp.touchDigConsumed) {
+        if (inp.touchDigPressed) {
           const res = tryDig(state, wm, pmInstance, digRow, digCol);
           if (res.success) digCoolRef.current = dcd;
-          inp.touchDigConsumed = true;
         }
 
         // Mouse click — adjacent tile only
@@ -134,7 +152,6 @@ export default function App() {
         }
       } else {
         if (inp.mouseClicked) consumeClick();
-        if (inp.touchDigPressed && !inp.touchDigConsumed) inp.touchDigConsumed = true;
       }
 
       // ── Keyboard shortcuts ──
@@ -168,8 +185,62 @@ export default function App() {
       }
 
       tickEnergy(state, dt);
+      tickHazards(state, wmInstance!, dt);
       tickScreenShake(state, dt);
       tickFloatTexts(state, dt);
+      tickBiomeTransition(state, dt);
+
+      // Hardcore collapse check
+      if (state.activeModifiers?.includes('hardcore') && state.player.energy <= 0) {
+        state.player.energy = 20;
+        state.player.money = Math.floor(state.player.money * 0.5);
+        state.player.inventory = [];
+        state.player.x = Math.floor((WORLD_WIDTH_CHUNKS * CHUNK_SIZE) / 2);
+        state.player.y = SURFACE_TILE_ROW - 1;
+        revealAround(state, wmInstance!);
+        updateBiome(state, wmInstance!);
+        spawnFloat(state, state.player.x * TILE_SIZE + TILE_SIZE / 2, state.player.y * TILE_SIZE - TILE_SIZE, '⚡ HARDCORE COLLAPSE - Money & Inventory Lost!', '#ef4444', 1.25);
+        if (state.settings.soundEnabled) audioManager.lowEnergy();
+      }
+
+      // Spawn ambient particles
+      const currentBiomeDef = BIOME_DEFS[state.currentBiome];
+      if (canvas && currentBiomeDef && currentBiomeDef.ambientParticle && Math.random() < 0.08) {
+        const cam = computeCamera(state, canvas.width, canvas.height);
+        const px = cam.x + Math.random() * cam.width;
+        const py = cam.y + Math.random() * cam.height;
+        
+        let color = '#fff';
+        let gravity = 0;
+        
+        if (currentBiomeDef.ambientParticle === 'spark') {
+          color = '#cc88ff';
+          gravity = -20;
+        } else if (currentBiomeDef.ambientParticle === 'ember') {
+          color = Math.random() < 0.5 ? '#ff5500' : '#ffa500';
+          gravity = -35;
+        } else if (currentBiomeDef.ambientParticle === 'bubble') {
+          color = 'rgba(102,34,204,0.3)';
+          gravity = -12;
+        }
+        
+        pmInstance.emit({
+          kind: currentBiomeDef.ambientParticle as any,
+          x: px,
+          y: py,
+          color,
+          count: 1,
+          speedMin: 0.1,
+          speedMax: 0.5,
+          sizeMin: 2,
+          sizeMax: currentBiomeDef.ambientParticle === 'bubble' ? 7 : 4,
+          gravity,
+          fade: 0.4 + Math.random() * 0.4,
+          lifeMin: 1.5,
+          lifeMax: 3.0
+        });
+      }
+
       pmInstance.tick(dt);
       tickEvents(state, wm, pmInstance, dt);
       audioManager.updateDepthMusic(playerDepth(state.player));
@@ -205,8 +276,8 @@ export default function App() {
 
       // Play time achievement milestones
       const pts = state.statistics.playTimeSeconds;
-      if (pts >= 3600) unlockAchievement(state, 'marathon_miner');
-      if (pts >= 7200) unlockAchievement(state, 'insomniac');
+      if (pts >= 7200) unlockAchievement(state, 'marathon_miner');
+      if (pts >= 14400) unlockAchievement(state, 'insomniac');
     }
 
     // Win state — save once and switch screen
@@ -258,26 +329,50 @@ export default function App() {
     };
   }, [gameLoop]);
 
-  // ── Sync audio volume when settings change ─────────────────────────────────
+  // ── Sync audio volume and accessibility settings when settings change ──────
   const syncAudio = useCallback((settings: GameState['settings']) => {
     audioManager.setEnabled(settings.soundEnabled);
     audioManager.setVolume(settings.volume);
     audioManager.setMusicEnabled(settings.musicEnabled);
     audioManager.setMusicVolume(settings.musicVolume);
+
+    // Sync body classes for accessibility graphics and text
+    const body = document.body;
+    if (settings.uiScale === 'large' || settings.uiScale === 'xlarge') {
+      body.classList.add('large-ui');
+    } else {
+      body.classList.remove('large-ui');
+    }
+
+    if (settings.largerText) {
+      body.classList.add('large-text');
+    } else {
+      body.classList.remove('large-text');
+    }
+
+    if (settings.reducedMotion) {
+      body.classList.add('reduced-motion');
+    } else {
+      body.classList.remove('reduced-motion');
+    }
   }, []);
 
   // ── Game initialisation ────────────────────────────────────────────────────
   const initGame = useCallback((state: GameState) => {
     stateRef.current = state;
     wmInstance = new WorldManager(state.seed, state.chunks);
+    wmInstance.artifactActivated = state.artifactActivated ?? false;
+    wmInstance.facilityUnlocked = state.facilityUnlocked ?? false;
     prevAchRef.current = new Set(state.achievements.filter(a => a.unlocked).map(a => a.id));
     revealAround(state, wmInstance);
     syncAudio(state.settings);
   }, [syncAudio]);
 
-  const startNewGame = useCallback((mode: GameState['mode'] = 'normal') => {
+  const startNewGame = useCallback((mode: GameState['mode'] = 'normal', seed?: number, modifiers?: string[]) => {
     audioManager.menuClick();
-    const state = createInitialState(undefined, mode);
+    const state = createInitialState(seed, mode);
+    if (modifiers) state.activeModifiers = modifiers;
+    if (seed !== undefined) state.chosenSeed = seed;
     state.screen = 'playing';
     initGame(state);
     setScreen('playing');
@@ -357,6 +452,21 @@ export default function App() {
     startNewGame(mode);
   }, [startNewGame]);
 
+  const handlePrestige = useCallback(() => {
+    audioManager.menuClick();
+    const currentPrestige = stateRef.current?.prestigeCount ?? 0;
+    const nextPrestige = currentPrestige + 1;
+    const state = createInitialState(undefined, 'normal');
+    state.prestigeCount = nextPrestige;
+    state.challengeModeUnlocked = true;
+    state.screen = 'playing';
+    SaveManager.deleteSave();
+    initGame(state);
+    SaveManager.save(state);
+    setScreen('playing');
+    forceUpdate(n => n + 1);
+  }, [initGame]);
+
   // ── Derived state for render ───────────────────────────────────────────────
   const state     = stateRef.current;
   const atSurface = state ? state.player.y <= SURFACE_TILE_ROW + 2 : false;
@@ -375,9 +485,11 @@ export default function App() {
       {screen === 'title' && (
         <TitleScreen
           hasSave={SaveManager.hasSave()}
-          onNewGame={() => startNewGame('normal')}
+          onNewGame={(seed, modifiers) => startNewGame('normal', seed, modifiers)}
           onContinue={continueGame}
-          onChallenge={startNewGame}
+          onChallenge={(mode, seed, modifiers) => startNewGame(mode, seed, modifiers)}
+          challengeModeUnlocked={stateRef.current ? stateRef.current.challengeModeUnlocked : SaveManager.hasSave() || (SaveManager.load()?.challengeModeUnlocked ?? false)}
+          prestigeCount={stateRef.current?.prestigeCount ?? SaveManager.load()?.prestigeCount ?? 0}
         />
       )}
 
@@ -391,14 +503,24 @@ export default function App() {
             onTeleport={state.player.teleportCharges > 0 ? handleUseTeleport : undefined}
           />
           <TutorialHint state={state} />
-          {isMobile && (
-            <TouchControls
-              onDig={() => {
-                if (!wmInstance || digCoolRef.current > 0) return;
-                const res = tryDig(state, wmInstance, pmInstance, state.player.y + 1, state.player.x);
-                if (res.success) digCoolRef.current = digCooldown(state.player.upgrades.shovel);
+          {state.atEndgameStabilizer && (
+            <EndgameModal
+              state={state}
+              onSelectEnding={(ending) => {
+                state.unlockedEnding = ending;
+                state.atEndgameStabilizer = false;
+                state.screen = 'win';
+                setScreen('win');
+                SaveManager.save(state);
+              }}
+              onClose={() => {
+                state.atEndgameStabilizer = false;
                 forceUpdate(n => n + 1);
               }}
+            />
+          )}
+          {isMobile && (
+            <TouchControls
               onTeleport={state.player.teleportCharges > 0 ? handleUseTeleport : undefined}
             />
           )}
@@ -457,6 +579,7 @@ export default function App() {
           state={state}
           onPlayAgain={() => handlePlayAgain('normal')}
           onChallenge={() => handlePlayAgain('hard')}
+          onPrestige={handlePrestige}
         />
       )}
 

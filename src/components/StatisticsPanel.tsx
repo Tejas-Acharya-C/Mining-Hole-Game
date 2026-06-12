@@ -26,46 +26,46 @@ export default function StatisticsPanel({ state, onClose }: Props) {
     <div className={styles.overlay}>
       <div className={styles.panel}>
         <div className={styles.header}>
-          <h2 className={styles.title}>📊 Statistics</h2>
+          <h2 className={styles.title}>📊 Mission Diagnostics</h2>
           <button className={styles.closeBtn} onClick={onClose}>✕</button>
         </div>
 
         <div className={styles.content}>
           {/* Mining */}
-          <Section title="Mining">
-            <Stat label="Blocks Dug"        val={statistics.blocksDug.toLocaleString()} />
-            <Stat label="Max Depth"         val={`${statistics.distanceReached}m`} />
-            <Stat label="Critical Hits"     val={statistics.criticalHits.toLocaleString()} />
-            <Stat label="Total Damage"      val={statistics.totalDamageDealt.toLocaleString()} />
-            <Stat label="Treasures Found"   val={statistics.treasuresFound.toLocaleString()} />
-            <Stat label="Artifacts"         val={statistics.artifactsCollected.toLocaleString()} />
-            <Stat label="Events Triggered"  val={statistics.eventsTriggered.toLocaleString()} />
-            <Stat label="Lore Collected"    val={`${statistics.loreFragmentsFound}/8`} />
+          <Section title="Subterranean Operations">
+            <Stat label="Total Chunks Dug"        val={statistics.blocksDug.toLocaleString()} />
+            <Stat label="Maximum Depth Achieved"  val={`${statistics.distanceReached}m`} />
+            <Stat label="Critical Impact Strikes" val={statistics.criticalHits.toLocaleString()} />
+            <Stat label="Total Kinetic Damage"    val={statistics.totalDamageDealt.toLocaleString()} />
+            <Stat label="Supply Chests Recovered" val={statistics.treasuresFound.toLocaleString()} />
+            <Stat label="Core Artifacts Secured"  val={statistics.artifactsCollected.toLocaleString()} />
+            <Stat label="Hazard Events Tripped"   val={statistics.eventsTriggered.toLocaleString()} />
+            <Stat label="Data Logs Decrypted"     val={`${statistics.loreFragmentsFound}/12`} />
           </Section>
 
           {/* Economy */}
-          <Section title="Economy">
-            <Stat label="Money Earned"  val={`$${statistics.moneyEarned.toLocaleString()}`} />
-            <Stat label="Money Spent"   val={`$${statistics.moneySpent.toLocaleString()}`} />
-            <Stat label="Sell Count"    val={statistics.sellCount.toLocaleString()} />
-            <Stat label="Sell Total"    val={`$${statistics.sellTotalValue.toLocaleString()}`} />
-            <Stat label="Upgrades"      val={statistics.upgradesPurchased.toLocaleString()} />
-            <Stat label="Quests Done"   val={statistics.questsCompleted.toLocaleString()} />
+          <Section title="Expedition Economics">
+            <Stat label="Gross Revenue Generated" val={`$${statistics.moneyEarned.toLocaleString()}`} />
+            <Stat label="Upgrade Capital Spent"   val={`$${statistics.moneySpent.toLocaleString()}`} />
+            <Stat label="Depot Transactions"      val={statistics.sellCount.toLocaleString()} />
+            <Stat label="Total Material Sales"     val={`$${statistics.sellTotalValue.toLocaleString()}`} />
+            <Stat label="Suit Upgrades Applied"   val={statistics.upgradesPurchased.toLocaleString()} />
+            <Stat label="Guild Quests Discharged" val={statistics.questsCompleted.toLocaleString()} />
           </Section>
 
           {/* Time */}
-          <Section title="Time">
-            <Stat label="Play Time" val={`${playH}h ${playM}m ${playS}s`} />
-            <Stat label="Rare Items Found" val={statistics.rareItemsFound.toLocaleString()} />
+          <Section title="Temporal Log">
+            <Stat label="Active Mission Duration" val={`${playH}h ${playM}m ${playS}s`} />
+            <Stat label="Ultra-Rare Finds"        val={statistics.rareItemsFound.toLocaleString()} />
           </Section>
 
           {/* Biomes */}
-          <Section title="Biomes Discovered">
+          <Section title="Discovered Biomes">
             <div className={styles.biomeList}>
               {[...statistics.biomesDiscovered].map(id => (
                 <span key={id} className={styles.biomeBadge}
                   style={{ borderColor: BIOME_DEFS[id]?.ambientColor + '88' }}>
-                  {BIOME_DEFS[id]?.label ?? id}
+                  {(BIOME_DEFS[id]?.label ?? id).toUpperCase()}
                 </span>
               ))}
             </div>
@@ -73,7 +73,7 @@ export default function StatisticsPanel({ state, onClose }: Props) {
 
           {/* Top Items */}
           {topItems.length > 0 && (
-            <Section title="Top Collected Items">
+            <Section title="Primary Extracted Materials">
               <div className={styles.itemGrid}>
                 {topItems.map(([id, qty]) => {
                   const def = ITEM_DEFS[id as keyof typeof ITEM_DEFS];
@@ -91,9 +91,9 @@ export default function StatisticsPanel({ state, onClose }: Props) {
           )}
 
           {/* Achievements score */}
-          <Section title="Achievements">
-            <Stat label="Unlocked" val={`${achievements.filter(a => a.unlocked).length} / ${achievements.length}`} />
-            <Stat label="Total Points" val={`${totalPts}`} />
+          <Section title="Service Medals">
+            <Stat label="Expedition Medals Unlocked" val={`${achievements.filter(a => a.unlocked).length} / ${achievements.length}`} />
+            <Stat label="Service Record Points"       val={`${totalPts} pts`} />
           </Section>
         </div>
       </div>
@@ -103,8 +103,8 @@ export default function StatisticsPanel({ state, onClose }: Props) {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: 18 }}>
-      <h3 style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '1px', color: '#475569', marginBottom: 8 }}>
+    <div className={styles.section}>
+      <h3 className={styles.sectionTitle}>
         {title}
       </h3>
       {children}
@@ -114,10 +114,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Stat({ label, val }: { label: string; val: string }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0',
-      borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: 13 }}>
-      <span style={{ color: '#64748b' }}>{label}</span>
-      <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{val}</span>
+    <div className={styles.statRow}>
+      <span className={styles.statLabel}>{label}</span>
+      <span className={styles.statVal}>{val}</span>
     </div>
   );
 }
+

@@ -5,18 +5,31 @@ import { lightRadius } from '../data/upgrades';
 import { BIOME_DEFS } from '../data/biomes';
 import { WorldManager } from '../systems/WorldManager';
 import type { ParticleManager } from '../systems/ParticleManager';
+import { getTouchState } from './input';
 
 // ── Offscreen canvas for lighting pass ────────────────────────────────────────
+// Fallback to regular canvas for browsers without OffscreenCanvas (Firefox < 105, Safari < 16.4)
 
-let lightCanvas: OffscreenCanvas | null = null;
-let lightCtx: OffscreenCanvasRenderingContext2D | null = null;
+type LightingSurface = OffscreenCanvas | HTMLCanvasElement;
+type LightingContext = OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
 
-function getLightCanvas(w: number, h: number): [OffscreenCanvas, OffscreenCanvasRenderingContext2D] {
-  if (!lightCanvas || lightCanvas.width !== w || lightCanvas.height !== h) {
-    lightCanvas = new OffscreenCanvas(w, h);
-    lightCtx = lightCanvas.getContext('2d') as OffscreenCanvasRenderingContext2D;
+let lightSurface: LightingSurface | null = null;
+let lightCtx2: LightingContext | null = null;
+
+function getLightCanvas(w: number, h: number): [LightingSurface, LightingContext] {
+  if (!lightSurface || lightSurface.width !== w || lightSurface.height !== h) {
+    if (typeof OffscreenCanvas !== 'undefined') {
+      lightSurface = new OffscreenCanvas(w, h);
+      lightCtx2 = lightSurface.getContext('2d') as OffscreenCanvasRenderingContext2D;
+    } else {
+      const el = document.createElement('canvas');
+      el.width = w;
+      el.height = h;
+      lightSurface = el;
+      lightCtx2 = el.getContext('2d') as CanvasRenderingContext2D;
+    }
   }
-  return [lightCanvas, lightCtx!];
+  return [lightSurface!, lightCtx2!];
 }
 
 // ── Camera ────────────────────────────────────────────────────────────────────
@@ -126,11 +139,19 @@ export function render(
   // Depth milestone flash
   drawDepthMilestoneEffect(ctx, state, cw, ch);
 
+  // Biome transition banner
+  drawBiomeTransition(ctx, state, cw, ch);
+
   // FPS counter
   if (state.settings.showFPS && fps !== undefined) {
     ctx.fillStyle = '#aaaaaa';
     ctx.font = '11px monospace';
     ctx.fillText(`${fps} fps | ${pm.activeCount} particles | depth:${depth}`, 8, 16);
+  }
+
+  // Touch joystick overlay
+  if (state.settings.touchControls) {
+    drawTouchJoystick(ctx);
   }
 
   if (camera.shakeX !== 0 || camera.shakeY !== 0) ctx.restore();
@@ -185,7 +206,7 @@ function drawTiles(ctx: CanvasRenderingContext2D, state: GameState, cam: Camera,
 
       // Ore face
       const accent = TILE_ACCENT[tile.kind];
-      if (accent) drawOreFace(ctx, sx, sy, accent, tile.kind);
+      if (accent) drawOreFace(ctx, sx, sy, accent, tile.kind, state);
 
       // Ancient brick pattern
       if (tile.kind === 'ancient_brick') {
@@ -250,7 +271,7 @@ function drawChest(ctx: CanvasRenderingContext2D, sx: number, sy: number): void 
   ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
 }
 
-function drawOreFace(ctx: CanvasRenderingContext2D, sx: number, sy: number, accent: string, kind: string): void {
+function drawOreFace(ctx: CanvasRenderingContext2D, sx: number, sy: number, accent: string, kind: string, state: GameState): void {
   const cx = sx + TILE_SIZE / 2;
   const cy = sy + TILE_SIZE / 2;
 
@@ -283,6 +304,32 @@ function drawOreFace(ctx: CanvasRenderingContext2D, sx: number, sy: number, acce
   ctx.lineTo(cx - r * 0.25, cy - r * 0.1);
   ctx.closePath();
   ctx.fill();
+
+  // Dynamic diagonal shimmer reflection for rare ores (ruby, sapphire, emerald, crystal, relic, etc.)
+  const rareOres = ['ruby', 'sapphire', 'emerald', 'crystal', 'relic', 'artifact', 'void_stone'];
+  if (rareOres.includes(kind) && !state.settings.reducedMotion) {
+    const time = Date.now();
+    const shimmerPos = (time % 2500) / 2500; // 0 to 1 every 2.5 seconds
+    ctx.save();
+    // Clip to the diamond path
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r);
+    ctx.lineTo(cx + r * 0.7, cy);
+    ctx.lineTo(cx, cy + r);
+    ctx.lineTo(cx - r * 0.7, cy);
+    ctx.closePath();
+    ctx.clip();
+
+    // Draw the moving diagonal white line
+    const xOffset = -r * 2 + shimmerPos * r * 4;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx + xOffset - r, cy + r);
+    ctx.lineTo(cx + xOffset + r, cy - r);
+    ctx.stroke();
+    ctx.restore();
+  }
 }
 
 function drawCracks(ctx: CanvasRenderingContext2D, sx: number, sy: number, frac: number): void {
@@ -304,14 +351,13 @@ function drawLighting(ctx: CanvasRenderingContext2D, state: GameState, cam: Came
   if (depth < 3) return;
 
   const { player } = state;
-  const radius = lightRadius(player.upgrades.lantern);
+  const radius = lightRadius(player.upgrades.lantern, state.activeModifiers);
   const px = player.x * TILE_SIZE + TILE_SIZE / 2 - cam.x;
   const py = player.y * TILE_SIZE + TILE_SIZE / 2 - cam.y;
   const lightPx = radius * TILE_SIZE;
 
   const [, lCtx] = getLightCanvas(cam.width, cam.height);
   lCtx.clearRect(0, 0, cam.width, cam.height);
-
   // Base darkness
   const overlayAlpha = Math.min(0.94, 0.3 + depth / 120 * 0.64);
   const surfacePixelY = SURFACE_TILE_ROW * TILE_SIZE - cam.y;
@@ -339,8 +385,18 @@ function drawLighting(ctx: CanvasRenderingContext2D, state: GameState, cam: Came
     for (let col = startCol; col <= endCol; col++) {
       const tile = wm.getTile(row, col);
       if (!tile || !tile.revealed) continue;
-      const isGlow = tile.kind === 'crystal' || tile.kind === 'void_stone'
+      let isGlow = tile.kind === 'crystal' || tile.kind === 'void_stone'
         || tile.kind === 'energy_node' || tile.kind === 'magma_rock' || tile.kind === 'artifact';
+      if (!isGlow && player.upgrades.ore_detector > 0) {
+        const isOre = ['coal', 'iron', 'silver', 'gold', 'ruby', 'sapphire', 'emerald',
+          'fossil', 'relic', 'obsidian', 'permafrost', 'ancient_brick'].includes(tile.kind);
+        if (isOre) {
+          const dist = Math.hypot(player.x - col, player.y - row);
+          if (dist <= player.upgrades.ore_detector * 3) {
+            isGlow = true;
+          }
+        }
+      }
       if (!isGlow) continue;
       const tx = col * TILE_SIZE + TILE_SIZE / 2 - cam.x;
       const ty = row * TILE_SIZE + TILE_SIZE / 2 - cam.y;
@@ -370,7 +426,7 @@ function drawLighting(ctx: CanvasRenderingContext2D, state: GameState, cam: Came
   }
 
   // Blit light buffer onto main canvas
-  ctx.drawImage(lightCanvas!, 0, 0);
+  ctx.drawImage(lightSurface as CanvasImageSource, 0, 0);
 }
 
 // ── Player sprite ─────────────────────────────────────────────────────────────
@@ -437,6 +493,38 @@ function drawPlayer(ctx: CanvasRenderingContext2D, state: GameState, cam: Camera
   }
 
   ctx.restore();
+
+  // Artifact Sense Compass
+  if (player.upgrades.artifact_sense > 0) {
+    const targetRow = 152;
+    const targetCol = 24;
+    const targetX = targetCol * TILE_SIZE + TILE_SIZE / 2;
+    const targetY = targetRow * TILE_SIZE + TILE_SIZE / 2;
+    const px = player.x * TILE_SIZE + TILE_SIZE / 2;
+    const py = player.y * TILE_SIZE + TILE_SIZE / 2;
+    const dx = targetX - px;
+    const dy = targetY - py;
+    const angle = Math.atan2(dy, dx);
+    const arrowDist = 24;
+    const ax = sx + s / 2 + Math.cos(angle) * arrowDist;
+    const ay = sy + s / 2 + Math.sin(angle) * arrowDist;
+
+    ctx.save();
+    ctx.translate(ax, ay);
+    ctx.rotate(angle);
+    ctx.fillStyle = '#f59e0b';
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(8, 0);
+    ctx.lineTo(-4, -5);
+    ctx.lineTo(-1, 0);
+    ctx.lineTo(-4, 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
 }
 
 // ── Particles ─────────────────────────────────────────────────────────────────
@@ -465,6 +553,14 @@ function drawParticles(ctx: CanvasRenderingContext2D, cam: Camera, pm: ParticleM
       ctx.lineTo(sx - r * 0.3, sy - r * 0.3);
       ctx.closePath();
       ctx.fill();
+    } else if (p.kind === 'bubble') {
+      ctx.beginPath();
+      ctx.arc(sx, sy, p.size * alpha, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
     } else {
       ctx.beginPath();
       ctx.arc(sx, sy, p.size * alpha, 0, Math.PI * 2);
@@ -660,4 +756,72 @@ function hexToRgb(hex: string): string {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `${r},${g},${b}`;
+}
+
+function drawTouchJoystick(ctx: CanvasRenderingContext2D): void {
+  const touch = getTouchState();
+  if (!touch.joyActive) return;
+
+  ctx.save();
+  // Draw outer circle
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(touch.joyOriginX, touch.joyOriginY, 60, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Draw inner knob
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.beginPath();
+  ctx.arc(touch.joyCurrentX, touch.joyCurrentY, 24, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawBiomeTransition(ctx: CanvasRenderingContext2D, state: GameState, cw: number, _ch: number): void {
+  const trans = state.biomeTransition;
+  if (!trans) return;
+
+  ctx.save();
+  let alpha = 1;
+  if (trans.life > 2.5) {
+    alpha = (3.0 - trans.life) / 0.5; // fade in over 0.5s
+  } else if (trans.life < 0.8) {
+    alpha = trans.life / 0.8; // fade out over 0.8s
+  }
+  alpha = Math.max(0, Math.min(1, alpha));
+  
+  ctx.globalAlpha = alpha;
+
+  const w = 340;
+  const h = 54;
+  const x = (cw - w) / 2;
+  const y = 70; // place below HUD
+
+  ctx.fillStyle = 'rgba(15, 15, 25, 0.7)';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+  ctx.lineWidth = 1.5;
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+  ctx.shadowBlur = 10;
+
+  roundRect(ctx, x, y, w, h, 10);
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.stroke();
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  
+  ctx.font = 'bold 9px sans-serif';
+  ctx.fillStyle = '#a8b2c1';
+  ctx.fillText('BIOME DISCOVERED', cw / 2, y + 17);
+
+  ctx.font = 'bold 15px sans-serif';
+  ctx.fillStyle = '#f59e0b'; // Warm amber name
+  ctx.fillText(trans.name.toUpperCase(), cw / 2, y + 35);
+
+  ctx.restore();
 }

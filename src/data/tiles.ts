@@ -36,6 +36,9 @@ export const TILE_COLORS: Record<TileKind, string> = {
   sell_point:   '#22c55e',
   chest:        '#d4a017',
   energy_node:  '#44ffaa',
+  ancient_terminal: '#3b82f6',
+  security_grid: '#ef4444',
+  resonance_stabilizer: '#fbbf24',
 };
 
 // Accent/gem colours drawn inside tiles
@@ -58,6 +61,9 @@ export const TILE_ACCENT: Partial<Record<TileKind, string>> = {
   ancient_brick: '#c8a870',
   chest:         '#ffe066',
   energy_node:   '#88ffcc',
+  ancient_terminal: '#60a5fa',
+  security_grid: '#fca5a5',
+  resonance_stabilizer: '#fde047',
 };
 
 // Tile HP (durability). 0 = indestructible / instantly air.
@@ -67,6 +73,7 @@ export const TILE_HP: Record<TileKind, number> = {
   crystal: 85, fossil: 35, relic: 60, artifact: 100,
   obsidian: 70, permafrost: 55, magma_rock: 80, void_stone: 95, ancient_brick: 50,
   ladder: 6, sell_point: 99999, chest: 30, energy_node: 40,
+  ancient_terminal: 99999, security_grid: 80, resonance_stabilizer: 99999,
 };
 
 // Energy consumed per dig swing on a tile type
@@ -76,6 +83,7 @@ export const TILE_ENERGY_COST: Record<TileKind, number> = {
   crystal: 12, fossil: 4, relic: 8, artifact: 15,
   obsidian: 9, permafrost: 6, magma_rock: 11, void_stone: 14, ancient_brick: 7,
   ladder: 1, sell_point: 0, chest: 4, energy_node: 5,
+  ancient_terminal: 0, security_grid: 12, resonance_stabilizer: 0,
 };
 
 // Tile → item drop mapping
@@ -86,4 +94,5 @@ export const TILE_DROPS: Partial<Record<TileKind, string>> = {
   obsidian: 'obsidian_shard', permafrost: 'ice_core', magma_rock: 'magma_gem',
   void_stone: 'void_crystal', ancient_brick: 'ancient_coin',
   energy_node: 'energy_cell', chest: 'ancient_coin',
+  security_grid: 'scrap_metal',
 };

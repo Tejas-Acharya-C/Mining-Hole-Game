@@ -27,6 +27,9 @@ export default function QuestsPanel({ state, onClose }: Props) {
     if (obj.type === 'depth') progressMax = obj.depth;
     if (obj.type === 'buy_upgrades') progressMax = obj.count;
     if (obj.type === 'find_biome') { progressMax = 1; progressCur = q.progress; }
+    if (obj.type === 'sell_item') progressMax = obj.count;
+    if (obj.type === 'max_battery') progressMax = obj.count;
+    if (obj.type === 'collect_all_gems') progressMax = 3;
     const pct = Math.min(1, progressCur / progressMax);
 
     return (

@@ -1,28 +1,86 @@
 .overlay {
   position: absolute; inset: 0;
-  background: rgba(0,0,0,0.68);
+  background: rgba(3, 2, 7, 0.82);
   display: flex; align-items: center; justify-content: center;
-  z-index: 50; backdrop-filter: blur(7px);
+  z-index: 50; backdrop-filter: blur(10px);
+  animation: fadeIn 0.2s ease-out;
 }
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .panel {
-  background: #0d0d1a;
-  border: 1px solid rgba(100,100,200,0.22);
-  border-radius: 16px; padding: 30px 38px;
-  width: min(320px, 92vw); text-align: center;
-  box-shadow: 0 0 60px rgba(0,0,0,0.85);
+  background: rgba(10, 8, 20, 0.92);
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  border-radius: 16px; padding: 32px 36px;
+  width: min(340px, 92vw); text-align: center;
+  box-shadow: 
+    0 10px 40px rgba(0, 0, 0, 0.85),
+    0 0 30px rgba(168, 85, 247, 0.05);
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.title { font-size: 22px; color: #e2e8f0; margin-bottom: 22px; }
-.buttons { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.title { 
+  font-size: 20px; 
+  font-weight: 800;
+  color: #f1f5f9; 
+  margin-bottom: 22px; 
+  letter-spacing: 1.5px;
+  font-family: var(--font-tech);
+  text-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
+}
+
+.buttons { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+
 .btn {
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.09);
-  color: #e2e8f0; padding: 11px 18px;
-  border-radius: 10px; font-size: 14px; font-weight: 600;
-  cursor: pointer; transition: background 0.14s;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #e2e8f0; padding: 12px 18px;
+  border-radius: 8px; font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all var(--transition-normal);
+  font-family: var(--font-primary);
+  letter-spacing: 0.5px;
 }
-.btn:hover { background: rgba(255,255,255,0.11); }
-.sellBtn { color: #22c55e; border-color: rgba(34,197,94,0.2); }
-.sellBtn:hover { background: rgba(34,197,94,0.1); }
-.danger { color: #f87171; border-color: rgba(248,113,113,0.18); }
-.danger:hover { background: rgba(248,113,113,0.09); }
-.hint { font-size: 11px; color: #475569; }
+
+.btn:hover { 
+  background: rgba(255, 255, 255, 0.06); 
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+.sellBtn { 
+  color: var(--color-green) !important; 
+  border-color: rgba(16, 185, 129, 0.2) !important; 
+}
+
+.sellBtn:hover { 
+  background: rgba(16, 185, 129, 0.08) !important; 
+  border-color: var(--color-green) !important; 
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.25);
+}
+
+.danger { 
+  color: var(--color-red) !important; 
+  border-color: rgba(244, 63, 94, 0.2) !important; 
+}
+
+.danger:hover { 
+  background: rgba(244, 63, 94, 0.08) !important; 
+  border-color: var(--color-red) !important; 
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.25);
+}
+
+.hint { 
+  font-family: var(--font-tech);
+  font-size: 10px; 
+  color: #52525b; 
+  letter-spacing: 0.5px;
+}
+

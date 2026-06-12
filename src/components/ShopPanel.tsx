@@ -12,7 +12,7 @@ interface Props {
 const UPGRADE_ORDER: UpgradeId[] = [
   'shovel', 'backpack', 'battery', 'lantern', 'boots',
   'reinforced_picks', 'critical_chance', 'drill',
-  'ore_detector', 'scanner', 'auto_collect',
+  'ore_detector', 'scanner',
   'teleport', 'jetpack', 'artifact_sense',
 ];
 
@@ -53,7 +53,7 @@ export default function ShopPanel({ state, onBuy, onClose }: Props) {
             const def    = UPGRADE_DEFS[id];
             const level  = player.upgrades[id];
             const maxed  = level >= def.maxLevel;
-            const locked = (def.unlockDepth ?? 0) > depth;
+            const locked = (def.unlockDepth ?? 0) > player.deepestDepth;
             const cost   = maxed || locked ? 0 : upgradeCost(id, level);
             const canBuy = !maxed && !locked && player.money >= cost;
 

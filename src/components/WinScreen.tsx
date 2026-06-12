@@ -7,6 +7,7 @@ interface Props {
   state: GameState;
   onPlayAgain: () => void;
   onChallenge: () => void;
+  onPrestige: () => void;
 }
 
 // Animated canvas background for win screen
@@ -49,13 +50,13 @@ function ArtifactCanvas() {
       }
       raf = requestAnimationFrame(draw);
     };
-    draw();
+    raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
   }, []);
   return <canvas ref={ref} width={400} height={120} className={styles.artifactCanvas} />;
 }
 
-export default function WinScreen({ state, onPlayAgain, onChallenge }: Props) {
+export default function WinScreen({ state, onPlayAgain, onChallenge, onPrestige }: Props) {
   const { player, achievements, statistics } = state;
   const mins = Math.floor(state.playTime / 60);
   const secs = Math.floor(state.playTime % 60);
@@ -75,12 +76,39 @@ export default function WinScreen({ state, onPlayAgain, onChallenge }: Props) {
     grade === 'A' ? '#22c55e' :
     grade === 'B' ? '#60a5fa' : '#94a3b8';
 
-  const narrativeLines = [
+  let title = "The Answer";
+  let narrativeLines = [
     'At the bottom of everything, you found it.',
     'Not treasure. Not wealth.',
     'A question, cast in metal that does not rust:',
     '"Why did you dig so deep?"',
   ];
+
+  if (state.unlockedEnding === 'standard') {
+    title = "Ending: Geothermal Containment";
+    narrativeLines = [
+      'You successfully routed core energies through the containment grid.',
+      'The reality rift stabilizes, and the deep shaking halts.',
+      'The surface remains safe, but the secrets of the void remain dormant.',
+      'A job well done, but the deep questions remain unanswered...',
+    ];
+  } else if (state.unlockedEnding === 'completionist') {
+    title = "Perfect Ending: Cosmic Equilibrium";
+    narrativeLines = [
+      'With all containment logs decoded and tools fully optimized, you achieve perfect resonance.',
+      'The rift and core merge in clean, perpetual equilibrium.',
+      'You have mastered the deep, solved the mystery, and saved the world.',
+      'You are a legendary miner of cosmic renown.',
+    ];
+  } else if (state.unlockedEnding === 'secret') {
+    title = "Secret Ending: Core Ascendant";
+    narrativeLines = [
+      'You chose to ignore protocols and absorb the rift\'s power directly.',
+      'Your physical body dissolves into glowing energy and nanites.',
+      'You transcend your humanity, becoming one with the world core.',
+      'You are no longer a miner. You are the deep core itself.',
+    ];
+  }
 
   return (
     <div className={styles.root}>
@@ -97,12 +125,12 @@ export default function WinScreen({ state, onPlayAgain, onChallenge }: Props) {
           </div>
         </div>
 
-        <h1 className={styles.title}>The Answer</h1>
+        <h1 className={styles.title}>{title}</h1>
 
         <div className={styles.narrative}>
           {narrativeLines.map((line, i) => (
             <p key={i} className={styles.narrativeLine}
-              style={{ animationDelay: `${i * 0.4}s` }}>
+              style={{ animationDelay: `${i * 0.45}s` }}>
               {line}
             </p>
           ))}
@@ -114,7 +142,7 @@ export default function WinScreen({ state, onPlayAgain, onChallenge }: Props) {
             { label: 'Blocks Dug',      val: statistics.blocksDug.toLocaleString() },
             { label: 'Money Earned',    val: `$${statistics.moneyEarned.toLocaleString()}` },
             { label: 'Events Found',    val: statistics.eventsTriggered.toLocaleString() },
-            { label: 'Lore Collected',  val: `${statistics.loreFragmentsFound}/8` },
+            { label: 'Lore Collected',  val: `${statistics.loreFragmentsFound}/12` },
             { label: 'Score',           val: `${points} pts` },
           ].map(s => (
             <div key={s.label} className={styles.statCard}>
@@ -147,9 +175,31 @@ export default function WinScreen({ state, onPlayAgain, onChallenge }: Props) {
           </div>
         )}
 
-        <div className={styles.buttons}>
-          <button className={styles.btnAgain} onClick={onPlayAgain}>↺ New Game</button>
-          <button className={styles.btnChallenge} onClick={onChallenge}>💀 Hard Mode</button>
+        <div className={styles.buttons} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', width: '100%' }}>
+            <button className={styles.btnAgain} onClick={onPlayAgain}>↺ New Game</button>
+            <button className={styles.btnChallenge} onClick={onChallenge}>💀 Hard Mode</button>
+          </div>
+          <button
+            onClick={onPrestige}
+            style={{
+              backgroundColor: '#fbbf24',
+              color: '#0f172a',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '12px 20px',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(251, 191, 36, 0.35)',
+              transition: 'all 0.2s ease',
+              width: '100%',
+              maxWidth: '340px',
+              alignSelf: 'center',
+            }}
+          >
+            👑 Prestige & Restart (+50% Income Multiplier)
+          </button>
         </div>
       </div>
     </div>

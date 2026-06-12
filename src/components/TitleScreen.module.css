@@ -1,98 +1,278 @@
 .root {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  background: radial-gradient(ellipse at 50% 25%, #0d2240 0%, #05050a 70%);
+  background: radial-gradient(ellipse at 50% 30%, #0c0822 0%, #030208 80%);
   overflow-y: auto;
+  font-family: var(--font-primary);
 }
-.stars {
-  position: absolute; inset: 0; pointer-events: none;
-  background-image:
-    radial-gradient(1px 1px at 10% 12%, #fff, transparent),
-    radial-gradient(1px 1px at 22% 38%, #ccc, transparent),
-    radial-gradient(1.5px 1.5px at 38% 8%, #fff, transparent),
-    radial-gradient(1px 1px at 55% 22%, #fff, transparent),
-    radial-gradient(1px 1px at 70% 5%, #aaa, transparent),
-    radial-gradient(1px 1px at 82% 32%, #fff, transparent),
-    radial-gradient(1.5px 1.5px at 14% 58%, #fff, transparent),
-    radial-gradient(1px 1px at 48% 48%, #ccc, transparent),
-    radial-gradient(1px 1px at 91% 62%, #fff, transparent),
-    radial-gradient(2px 2px at 5% 82%, #fff, transparent),
-    radial-gradient(1px 1px at 32% 72%, #ccc, transparent),
-    radial-gradient(1.5px 1.5px at 68% 78%, #fff, transparent),
-    radial-gradient(1px 1px at 93% 88%, #aaa, transparent);
-  opacity: 0.65;
+
+.gridOverlay {
+  position: absolute; inset: 0;
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(168, 85, 247, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(168, 85, 247, 0.03) 1px, transparent 1px);
+  mask-image: radial-gradient(ellipse at 50% 40%, black 30%, transparent 90%);
+  pointer-events: none;
 }
+
+.ambientGlow {
+  position: absolute; width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.06) 0%, transparent 70%);
+  top: 10%; left: 50%; transform: translate(-50%, -50%);
+  pointer-events: none;
+  filter: blur(40px);
+}
+
 .panel {
   position: relative; z-index: 1;
-  background: rgba(8,8,20,0.88);
-  border: 1px solid rgba(100,100,200,0.18);
-  border-radius: 18px; padding: 38px 44px;
-  width: min(480px, 93vw); text-align: center;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 0 70px rgba(60,60,255,0.08);
-  margin: 20px 0;
+  background: rgba(6, 4, 15, 0.82);
+  border: 1px solid rgba(168, 85, 247, 0.16);
+  border-radius: 20px; padding: 40px 48px;
+  width: min(520px, 94vw); text-align: center;
+  backdrop-filter: blur(16px);
+  box-shadow: 
+    0 0 40px rgba(0, 0, 0, 0.8),
+    0 0 60px rgba(168, 85, 247, 0.05);
+  margin: 30px 0;
+  transition: border-color var(--transition-normal);
 }
+
+.panel:hover {
+  border-color: rgba(168, 85, 247, 0.28);
+}
+
+.logoContainer {
+  margin-bottom: 8px;
+}
+
 .logo {
-  font-size: clamp(40px,7.5vw,62px);
-  font-weight: 900; letter-spacing: 5px; line-height: 1;
-  margin-bottom: 10px;
+  font-size: clamp(38px, 8.5vw, 58px);
+  font-weight: 900; letter-spacing: 7px; line-height: 0.95;
+  text-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
 }
+
 .logoChar {
   display: inline-block;
-  color: hsl(calc(30 * var(--i, 0)), 85%, 65%);
-  animation: floatChar 3s ease-in-out calc(var(--i, 0) * 0.12s) infinite alternate;
+  color: var(--color-purple);
+  animation: floatChar 3.5s ease-in-out calc(var(--i, 0) * 0.12s) infinite alternate;
+  font-weight: 900;
 }
+
 @keyframes floatChar {
-  from { transform: translateY(0); }
-  to   { transform: translateY(-4px); }
+  from { transform: translateY(0) scale(1); filter: drop-shadow(0 0 1px rgba(168,85,247,0.3)); }
+  to   { transform: translateY(-6px) scale(1.02); filter: drop-shadow(0 0 12px rgba(168,85,247,0.85)); }
 }
-.tagline { color: #64748b; font-size: 13px; margin-bottom: 26px; letter-spacing: 1px; }
-.buttons { display: flex; flex-direction: column; gap: 9px; margin-bottom: 16px; }
+
+.subLogo {
+  font-family: var(--font-tech);
+  font-size: 15px; letter-spacing: 8px;
+  color: var(--color-gold);
+  margin-top: 8px;
+  text-shadow: 0 0 8px rgba(251, 191, 36, 0.35);
+  font-weight: 700;
+}
+
+.tagline { 
+  color: #52525b; 
+  font-size: 11px; 
+  margin-bottom: 26px; 
+  letter-spacing: 2.2px; 
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.prestigeBadge {
+  color: var(--color-gold);
+  font-family: var(--font-tech);
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 18px;
+  background: rgba(251, 191, 36, 0.07);
+  border: 1px solid rgba(251, 191, 36, 0.22);
+  border-radius: 8px;
+  padding: 6px 12px;
+  display: inline-block;
+  text-shadow: 0 0 8px rgba(251, 191, 36, 0.3);
+}
+
+.modifiersSection {
+  background: rgba(147, 51, 234, 0.03);
+  border: 1px solid rgba(168, 85, 247, 0.12);
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.sectionLabel {
+  font-family: var(--font-tech);
+  font-size: 11px;
+  font-weight: bold;
+  display: block;
+  margin-bottom: 6px;
+  letter-spacing: 1.5px;
+  color: var(--color-gold);
+}
+
+.seedInput {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  border-radius: 8px;
+  color: #fff;
+  padding: 8px 12px;
+  font-family: var(--font-tech);
+  font-size: 13px;
+  width: 100%;
+  max-width: 220px;
+  letter-spacing: 2px;
+  transition: all var(--transition-normal);
+}
+
+.seedInput:focus {
+  outline: none;
+  border-color: var(--color-gold);
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.25);
+  background: rgba(0, 0, 0, 0.65);
+}
+
+.modsGrid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+}
+
+.modButton {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #71717a;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.modButton:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #a1a1aa;
+}
+
+.modActive {
+  background: rgba(168, 85, 247, 0.08) !important;
+  border-color: var(--color-purple) !important;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.15);
+}
+
+.modLabel {
+  font-weight: 700; font-size: 11.5px;
+  color: #e2e8f0;
+  transition: color var(--transition-normal);
+}
+
+.modActive .modLabel {
+  color: #f3e8ff;
+}
+
+.modDesc {
+  font-size: 9px; opacity: 0.75;
+  margin-top: 2px;
+  line-height: 1.25;
+}
+
+.buttons { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+
 .btnPrimary {
-  background: linear-gradient(135deg, #3b82f6, #6366f1);
-  color: #fff; border: none; padding: 13px 26px;
-  border-radius: 10px; font-size: 15px; font-weight: 700;
-  cursor: pointer; transition: transform 0.1s, box-shadow 0.1s;
-  box-shadow: 0 4px 16px rgba(99,102,241,0.32);
+  background: linear-gradient(135deg, #7e22ce, #4f46e5);
+  color: #fff; border: none; padding: 14px 28px;
+  border-radius: 10px; font-size: 14px; font-weight: 800;
+  letter-spacing: 1.5px;
+  cursor: pointer; transition: all var(--transition-normal);
+  box-shadow: 0 4px 20px rgba(126, 34, 206, 0.35);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
 }
-.btnPrimary:hover { transform: translateY(-2px); box-shadow: 0 6px 22px rgba(99,102,241,0.48); }
+
+.btnPrimary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 26px rgba(126, 34, 206, 0.55);
+  filter: brightness(1.1);
+}
+
 .btnSecondary {
-  background: rgba(255,255,255,0.05); color: #94a3b8;
-  border: 1px solid rgba(255,255,255,0.09);
-  padding: 11px 26px; border-radius: 10px; font-size: 14px; font-weight: 600;
-  cursor: pointer; transition: background 0.14s;
+  background: rgba(255, 255, 255, 0.03); color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 12px 28px; border-radius: 10px; font-size: 13px; font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer; transition: all var(--transition-normal);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
 }
-.btnSecondary:hover { background: rgba(255,255,255,0.1); color: #e2e8f0; }
+
+.btnSecondary:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #f1f5f9;
+}
+
+.btnIcon {
+  font-size: 14px;
+}
 
 .modeGrid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 7px;
-  margin-bottom: 14px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  margin-bottom: 18px;
 }
+
 .modeCard {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 10px; padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px; padding: 10px 12px;
   cursor: pointer; text-align: left;
   display: flex; flex-direction: column; gap: 3px;
-  transition: background 0.14s;
+  transition: all var(--transition-normal);
 }
-.modeCard:hover { background: rgba(255,255,255,0.07); }
-.modeLabel { font-size: 12px; font-weight: 700; }
-.modeDesc { font-size: 10px; color: #64748b; line-height: 1.3; }
+
+.modeCard:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.modeCardLabel { font-size: 12px; font-weight: 700; }
+.modeDesc { font-size: 9.5px; color: #71717a; line-height: 1.35; }
 
 .toggleBtn {
-  background: none; color: #475569; font-size: 11px;
-  padding: 4px 8px; border-radius: 4px; cursor: pointer;
-  border: none; transition: color 0.14s; margin-bottom: 8px;
+  background: none; color: #4b5563; font-size: 11px;
+  padding: 6px 12px; border-radius: 4px; cursor: pointer;
+  border: none; transition: color var(--transition-normal); 
+  margin-bottom: 8px;
+  font-family: var(--font-tech);
+  letter-spacing: 1px;
+  font-weight: bold;
 }
-.toggleBtn:hover { color: #94a3b8; }
+
+.toggleBtn:hover { color: #a1a1aa; }
 
 .controls {
-  background: rgba(0,0,0,0.3); border-radius: 10px;
-  padding: 12px 16px; text-align: left;
+  background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 16px 20px; text-align: left;
+  animation: slideDownPanel 0.25s ease-out;
 }
+
+@keyframes slideDownPanel {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .ctrlGrid {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 4px 12px; font-size: 12px; color: #94a3b8;
+  display: grid; grid-template-columns: 1.2fr 1.8fr;
+  gap: 6px 16px; font-size: 11px; color: #71717a;
 }
-.ctrlGrid span:nth-child(odd) { color: #cbd5e1; font-weight: 600; }
+.ctrlGrid span:nth-child(odd) { 
+  color: #d4d4d8; 
+  font-weight: 700; 
+  font-family: var(--font-tech);
+  letter-spacing: 0.5px;
+}
+.ctrlGrid span:nth-child(even) {
+  text-shadow: 0 0 2px rgba(255,255,255,0.05);
+}
+

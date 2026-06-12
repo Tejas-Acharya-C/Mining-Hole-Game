@@ -1,31 +1,121 @@
 .overlay {
   position: absolute; inset: 0;
-  background: rgba(0,0,0,0.72); display: flex; align-items: center; justify-content: center;
-  z-index: 50; backdrop-filter: blur(5px);
+  background: rgba(3, 2, 7, 0.82); display: flex; align-items: center; justify-content: center;
+  z-index: 50; backdrop-filter: blur(10px);
+  animation: fadeIn 0.2s ease-out;
 }
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .panel {
-  background: #0d0d1a; border: 1px solid rgba(100,100,200,0.22);
-  border-radius: 16px; padding: 22px 24px;
-  width: min(520px, 96vw); max-height: 88vh;
+  background: rgba(10, 8, 20, 0.92);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  border-radius: 16px; padding: 24px 28px;
+  width: min(540px, 95vw); max-height: 85vh;
   display: flex; flex-direction: column;
-  box-shadow: 0 0 60px rgba(0,0,0,0.85);
+  box-shadow: 
+    0 10px 40px rgba(0, 0, 0, 0.8),
+    0 0 30px rgba(168, 85, 247, 0.05);
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.header { display: flex; align-items: center; margin-bottom: 16px; }
-.title { flex: 1; font-size: 20px; color: #e2e8f0; }
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.header { 
+  display: flex; align-items: center; margin-bottom: 18px; 
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 10px;
+}
+
+.title { 
+  flex: 1; 
+  font-size: 20px; 
+  font-weight: 800;
+  color: #f1f5f9; 
+  letter-spacing: 0.5px;
+}
+
 .closeBtn {
-  background: rgba(255,255,255,0.07); border: none; color: #94a3b8;
-  width: 30px; height: 30px; border-radius: 7px; font-size: 15px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255,255,255,0.06); color: #a1a1aa;
+  width: 28px; height: 28px; border-radius: 6px; font-size: 12px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition-normal);
 }
-.closeBtn:hover { background: rgba(255,255,255,0.14); }
-.content { overflow-y: auto; flex: 1; }
-.biomeList { display: flex; flex-wrap: wrap; gap: 5px; }
+
+.closeBtn:hover { 
+  background: rgba(239, 68, 68, 0.1); 
+  border-color: rgba(239, 68, 68, 0.3); 
+  color: var(--color-red); 
+}
+
+.content { 
+  overflow-y: auto; flex: 1; 
+  padding-right: 2px;
+}
+
+.section {
+  margin-bottom: 22px;
+}
+
+.sectionTitle {
+  font-family: var(--font-tech);
+  font-size: 11.5px; text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--color-gold); margin-bottom: 10px;
+  border-left: 2px solid var(--color-gold);
+  padding-left: 8px;
+}
+
+.statRow {
+  display: flex; justify-content: space-between; padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03); 
+  font-size: 12.5px;
+}
+
+.statLabel {
+  color: #71717a;
+  font-weight: 600;
+}
+
+.statVal {
+  color: #f1f5f9;
+  font-weight: bold;
+  font-family: var(--font-tech);
+}
+
+.biomeList { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+
 .biomeBadge {
-  font-size: 11px; padding: 3px 9px; border-radius: 5px;
-  border: 1px solid rgba(100,100,200,0.3); color: #94a3b8;
-  background: rgba(255,255,255,0.03);
+  font-family: var(--font-tech);
+  font-size: 10px; padding: 4px 10px; border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.1); color: #a1a1aa;
+  background: rgba(255, 255, 255, 0.02);
+  letter-spacing: 0.5px;
+  font-weight: bold;
 }
-.itemGrid { display: flex; flex-direction: column; gap: 3px; }
-.itemRow { display: flex; align-items: center; gap: 8px; }
-.itemDot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.itemName { flex: 1; font-size: 12px; color: #94a3b8; }
-.itemQty { font-size: 12px; font-weight: 600; color: #e2e8f0; }
+
+.itemGrid { 
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  margin-top: 4px;
+}
+
+.itemRow { 
+  display: flex; align-items: center; gap: 8px; 
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+}
+
+.itemDot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 6px currentColor; }
+.itemName { flex: 1; font-size: 12px; color: #a1a1aa; font-weight: 600; }
+.itemQty { 
+  font-family: var(--font-tech);
+  font-size: 12.5px; font-weight: bold; color: #f1f5f9; 
+}
+

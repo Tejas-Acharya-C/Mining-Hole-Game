@@ -9,7 +9,8 @@ export type TileKind =
   | 'coal' | 'iron' | 'silver' | 'gold' | 'ruby' | 'sapphire' | 'emerald'
   | 'crystal' | 'fossil' | 'relic' | 'artifact'
   | 'obsidian' | 'permafrost' | 'magma_rock' | 'void_stone' | 'ancient_brick'
-  | 'ladder' | 'sell_point' | 'chest' | 'energy_node';
+  | 'ladder' | 'sell_point' | 'chest' | 'energy_node'
+  | 'ancient_terminal' | 'security_grid' | 'resonance_stabilizer';
 
 export interface Tile {
   kind: TileKind;
@@ -44,7 +45,10 @@ export type BiomeId =
   | 'fossil_zone'
   | 'lava_zone'
   | 'void_realm'
-  | 'secret_chamber';
+  | 'secret_chamber'
+  | 'ancient_facility'
+  | 'world_core'
+  | 'reality_fracture';
 
 export interface BiomeDef {
   id: BiomeId;
@@ -65,6 +69,10 @@ export interface OreEntry {
   weight: number;
   minDepth: number;
   clusterSize?: number;
+  veinsPerChunk?: number;
+  veinSizeMin?: number;
+  veinSizeMax?: number;
+  spawnChance?: number;
 }
 
 export type SpecialFeature = 'cave' | 'lake' | 'vein' | 'chamber' | 'shaft' | 'fossil_bed';
@@ -108,7 +116,8 @@ export type ItemId =
   | 'ruby' | 'sapphire' | 'emerald' | 'crystal'
   | 'fossil' | 'relic' | 'artifact'
   | 'obsidian_shard' | 'ice_core' | 'magma_gem' | 'void_crystal' | 'ancient_coin'
-  | 'energy_cell' | 'scrap_metal' | 'deep_pearl' | 'sun_stone';
+  | 'energy_cell' | 'scrap_metal' | 'deep_pearl' | 'sun_stone'
+  | 'facility_key' | 'core_stabilizer' | 'fracture_shard';
 
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
 
@@ -136,7 +145,7 @@ export interface InventorySlot {
 
 export type UpgradeId =
   | 'shovel' | 'backpack' | 'battery' | 'lantern' | 'boots'
-  | 'drill' | 'jetpack' | 'scanner' | 'auto_collect' | 'critical_chance'
+  | 'drill' | 'jetpack' | 'scanner' | 'critical_chance'
   | 'ore_detector' | 'teleport' | 'artifact_sense' | 'reinforced_picks';
 
 export interface UpgradeDef {
@@ -176,7 +185,10 @@ export type QuestObjective =
   | { type: 'collect'; itemId: ItemId; count: number }
   | { type: 'depth'; depth: number }
   | { type: 'buy_upgrades'; count: number }
-  | { type: 'find_biome'; biome: BiomeId };
+  | { type: 'find_biome'; biome: BiomeId }
+  | { type: 'sell_item'; itemId: ItemId; count: number }
+  | { type: 'max_battery'; count: number }
+  | { type: 'collect_all_gems' };
 
 export interface QuestReward {
   money?: number;
@@ -312,6 +324,7 @@ export interface Player {
   shakeAmount: number;
   // Permanent bonuses from quests
   permanentBonuses: PermanentBonus[];
+  surfacedThisTrip?: boolean;
 }
 
 // ─── Screens & Modes ───────────────────────────────────────────────────────────
@@ -325,17 +338,32 @@ export type GameMode = 'normal' | 'hard' | 'no_battery' | 'no_shop' | 'randomize
 
 // ─── Settings ──────────────────────────────────────────────────────────────────
 
+export type ColorblindMode = 'none' | 'protanopia' | 'deuteranopia' | 'tritanopia';
+export type UIScale = 'small' | 'normal' | 'large' | 'xlarge';
+
 export interface Settings {
+  // Audio
   soundEnabled: boolean;
   musicEnabled: boolean;
   volume: number;
   musicVolume: number;
+  // Graphics
   showFPS: boolean;
-  showTutorial: boolean;
   screenShake: boolean;
   particleQuality: 'low' | 'medium' | 'high';
+  lightingQuality: 'low' | 'medium' | 'high';
+  // Gameplay
+  showTutorial: boolean;
   touchControls: boolean;
-  autoSell: boolean;      // auto-sell when stepping on sell point
+  autoSell: boolean;
+  autosaveInterval: number;   // seconds, 15/30/60
+  // Accessibility
+  colorblindMode: ColorblindMode;
+  reducedMotion: boolean;
+  reducedFlashing: boolean;
+  highContrast: boolean;
+  uiScale: UIScale;
+  largerText: boolean;
 }
 
 // ─── Camera ────────────────────────────────────────────────────────────────────
@@ -393,6 +421,21 @@ export interface GameState {
 
   // First-run intro done
   introComplete: boolean;
+
+  // Biome transition announcement
+  biomeTransition?: {
+    name: string;
+    life: number;
+    maxLife: number;
+  };
+  artifactActivated?: boolean;
+  facilityUnlocked?: boolean;
+  prestigeCount?: number;
+  unlockedEnding?: 'standard' | 'completionist' | 'secret';
+  chosenSeed?: number;
+  activeModifiers?: string[];
+  atEndgameStabilizer?: boolean;
+  hitStopTimer?: number;
 }
 
 // ─── Save format ───────────────────────────────────────────────────────────────
@@ -411,6 +454,12 @@ export interface SaveData {
   secretFound: boolean;
   playTime: number;
   currentBiome: BiomeId;
+  artifactActivated?: boolean;
+  facilityUnlocked?: boolean;
+  prestigeCount?: number;
+  unlockedEnding?: 'standard' | 'completionist' | 'secret';
+  chosenSeed?: number;
+  activeModifiers?: string[];
 }
 
 export interface SerializedPlayer {
@@ -424,6 +473,7 @@ export interface SerializedPlayer {
   facing: 'left' | 'right';
   teleportCharges: number;
   permanentBonuses: PermanentBonus[];
+  surfacedThisTrip?: boolean;
 }
 
 export interface SerializedChunk {

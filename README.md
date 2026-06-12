@@ -1,49 +1,46 @@
-# ⛏ Deep Dig
+# 🌌 VOIDCORE: DEEP ALCHEMY
 
-> Dig down. Collect rare ores. Sell high. Upgrade your tools. Find the secret at the bottom.
+> Drill deep. Harness the void. Survive the hazards. Stabilize the world core.
 
-A polished browser-based indie digging game built with React, TypeScript, Vite, and Canvas 2D — no external assets required.
+A premium, highly polished browser-based sci-fi extraction and mining game built with React, TypeScript, Vite, and Canvas 2D — no external assets required. 
 
-![Deep Dig Title Screen](docs/screenshot-title.png)
+![VOIDCORE Title Screen](docs/screenshot-title.png)
 <!-- Add screenshots to docs/ folder -->
 
 ---
 
-## Features
+## 🚀 Key Features
 
-- **Infinite procedural world** — chunk-based generation with 9 unique biomes
-- **50 achievements** across exploration, economy, collection, speed, and secrets
-- **15 quests** with chained unlocks and permanent stat bonuses
-- **14 upgrades** — shovel, backpack, battery, lantern, boots, drill, critical strike, scanner, teleporter, jetpack, and more
-- **20 collectible items** from common coal to mythic artifacts
-- **Dynamic lighting** — offscreen canvas lighting pass with glowing ores
-- **Object-pooled particles** — zero heap allocations during gameplay
-- **Procedural audio** — full Web Audio API sound engine, no audio files
-- **5 challenge modes** — Hard, No Battery, No Shop, Chaos Market, Double Treasure
-- **Full save system** — versioned localStorage with migration support
-- **Touch/mobile support** — virtual joystick + action buttons
-- **Screen shake, biome transitions, depth fog, sparkle effects**
-
----
-
-## Controls
-
-| Action | Input |
-|--------|-------|
-| Move | Arrow Keys / WASD |
-| Dig | Z / Space, or click adjacent tile |
-| Sell items | E (at surface) or walk onto $ tile |
-| Open Shop | B (at surface) |
-| Inventory | I |
-| Quests | Q |
-| Teleport to surface | T (requires Teleporter upgrade) |
-| Pause | Esc / P |
-
-**Touch:** Left half = virtual joystick · Right side = dig button
+*   **Cybernetic Miner HUD & Visor**: Futuristic visor panel displaying status readouts, gold/energy gauges, low energy warning flashes, and compass targets.
+*   **Procedural Synth SFX & Ambient Drones**: Full procedural Web Audio API engine. Low-frequency ambient drones shift dynamically with depth layer, coupled with glistening arpeggio loops for rare discoveries.
+*   **Advanced Game Feel**: Screen rumble shakes, hit-stop physics freezes, hit-flash tile highlights, and particle debris bursts on digs.
+*   **Endgame & Bedrock Gating**: 3 endgame layers gated by high-security Bedrock:
+    *   *Ancient Facility*: Central containment grids draining player suit energy.
+    *   *World Core*: Unstable geothermal molten magma rocks.
+    *   *Reality Fracture*: Reality-bending dimensional fracture rifts.
+*   **Prestige Rank System**: Compounding cash value multiplier (+50% per rank) and energy cost discount on tool actions.
+*   **Release Modifiers & Seeds**: Set custom projection seeds and toggle environmental modifiers: *Low Gravity*, *Deep Darkness*, *Rich Veins*, and *Hardcore Collapse*.
+*   **Three Narrative Endings**: Unlock standard containment, void singularity absorption, or perfect resonance stabilization depending on items gathered.
+*   **Accessibility Dashboards**: Full accessibility controls supporting UI scaling multipliers, large high-contrast text, and a reduced motion selector.
 
 ---
 
-## Installation
+## 🎮 Controls
+
+| Action | Keyboard Input | Touch Control |
+|--------|----------------|---------------|
+| Move / Thrust | Arrow Keys / WASD | Left side Virtual Joystick |
+| Activate Drill | Z / Space / Left Click | Right side Dig Button |
+| Sell metals | E (at Surface Terminal) | Walk onto depot area |
+| Suit upgrade shop | B (at Surface Terminal) | Tap top panel SUIT SHOP |
+| Inventory Bag | I | Tap Backpack Icon |
+| Mission Quests | Q | Tap Quests Panel |
+| Surface Beacon | T (Requires Teleport charge) | Tap Teleport charge button |
+| Pause Terminal | Esc / P | Tap Pause Button |
+
+---
+
+## 🛠️ Installation
 
 ```bash
 # Clone the repository
@@ -57,101 +54,72 @@ npm install
 npm run dev
 ```
 
-Open **http://localhost:5173** in a modern desktop browser.
+Open **http://localhost:5173** in your web browser.
 
 ---
 
-## Development
-
-```bash
-# Type check
-npx tsc --noEmit
-
-# Development server with HMR
-npm run dev
-
-# Production build
-npm run build
-
-# Preview production build locally
-npm run preview
-```
-
----
-
-## Build Output
-
-```
-dist/index.html           ~0.6 KB  (gzip: ~0.4 KB)
-dist/assets/*.css        ~23 KB   (gzip: ~5 KB)
-dist/assets/*.js        ~238 KB   (gzip: ~76 KB)
-```
-
-No external runtime dependencies. Works fully offline after initial load.
-
----
-
-## Folder Structure
+## 📦 Folder Structure
 
 ```
 src/
 ├── types/
-│   └── index.ts          All TypeScript interfaces and type unions
+│   └── index.ts          TypeScript interfaces, modifiers and game state types
 ├── data/
-│   ├── tiles.ts          Tile definitions, colours, HP, energy, drop table
-│   ├── items.ts          20 collectible item definitions
-│   ├── upgrades.ts       14 upgrade definitions + stat formulas
-│   ├── biomes.ts         9 biome definitions + depth mapping
-│   ├── achievements.ts   50 achievement definitions
-│   ├── quests.ts         15 quest definitions + unlock chains
-│   └── defaults.ts       Default settings factory
+│   ├── tiles.ts          Tile definitions, colors, HP, energy cost, drops
+│   ├── items.ts          Collectible item definitions and sell values
+│   ├── upgrades.ts       Upgrades scale, battery capacity, light formulas
+│   ├── biomes.ts         Biomes definitions, labels and color codes
+│   ├── achievements.ts   50 achievements conditions
+│   ├── quests.ts         15 quests objectives
+│   └── defaults.ts       Default settings setup
 ├── systems/
-│   ├── WorldManager.ts   Chunk-based infinite world, LRU cache
-│   ├── GameManager.ts    Core game logic (dig, move, sell, upgrade…)
+│   ├── WorldManager.ts   Procedural chunk loader and LRU cache
+│   ├── GameManager.ts    Core game ticks, movement, digging, terminal logic
 │   ├── ParticleManager.ts Object-pooled 400-slot particle system
-│   ├── AudioManager.ts   Procedural Web Audio API sound engine
-│   └── SaveManager.ts    Versioned save/load with migration
+│   ├── AudioManager.ts   Procedural Web Audio API sound and drones engine
+│   └── SaveManager.ts    Local storage load/save logic
 ├── engine/
-│   ├── renderer.ts       Canvas 2D renderer with offscreen lighting
-│   └── input.ts          Keyboard + mouse + touch unified handler
-├── components/           12 React UI panels with CSS Modules
-├── App.tsx               RAF game loop, screen routing, managers
+│   ├── renderer.ts       Canvas 2D renderer, lighting pass, rare ore shimmer
+│   └── input.ts          Keyboard, mouse and touch unified handler
+├── components/           12 Glassmorphic React UI panels with CSS Modules
+├── App.tsx               Main loop, time tick manager, and settings mapper
 ├── main.tsx              React entry point
-└── index.css             Global reset + font
+└── index.css             Global tokens, Outfit/Share Tech Mono font imports
 ```
 
 ---
 
-## Technology Stack
+## 🏔️ Progression Biomes
 
-| Technology | Version | Purpose |
-|-----------|---------|---------|
-| React | 18.3 | UI rendering and component tree |
-| TypeScript | 5.6 | Strict type safety throughout |
-| Vite | 6.0 | Build tool, HMR dev server |
-| Canvas 2D | Browser API | Game rendering |
-| OffscreenCanvas | Browser API | Lighting pass |
-| Web Audio API | Browser API | Procedural sound |
-
----
-
-## Biomes
-
-| Biome | Depth | Highlights |
-|-------|-------|-----------|
-| Surface | 0 | Sell point, dig opening |
-| Soil Layer | Chunk 1 | Coal, iron |
-| Clay Beds | Chunk 2–3 | Fossil clusters |
-| Stone Belt | Chunk 3–6 | Gold, obsidian |
-| Deep Rock | Chunk 6–9 | Gems, relics |
-| Crystal Caverns | Chunk 9+ | Crystal clusters, void stone |
-| Fossil Zone | Rare (mid) | Dense fossil beds, ancient coins |
-| Lava Fields | Rare (deep) | Magma gems, ember particles |
-| The Void | Chunk 10+ | Minimal light, void crystals |
-| Lost Chamber | Fixed depth | Artifact (win condition) |
+| Biome | Depth Layer | Environmental Highlights |
+|-------|-------------|-------------------------|
+| Surface | cy 0 | Depot Terminal, Sell & Shop base |
+| Soil Layer | cy 1 | Coal, iron pockets |
+| Clay Beds | cy 2–3 | Fossil clusters, clay walls |
+| Stone Belt | cy 3–6 | Gold veins, hardstone bricks |
+| Deep Rock | cy 6–9 | Emeralds, ruby gems, relics |
+| Crystal Caverns | cy 9+ | Crystal clusters, glowing void stone |
+| Ancient Facility | cy 10-11 | Security grids, keycard chests, hazard energy drain |
+| World Core | cy 12-13 | Volcanic magma rocks, stabilizer core |
+| Reality Fracture | cy 14+ | Void stone blocks, fracture shards, Resonance Stabilizer |
 
 ---
 
-## License
+## 🧪 Development & Testing
+
+```bash
+# Run strict TypeScript compiler
+npx tsc --noEmit
+
+# Run Vitest automated test suite (111 tests)
+npm test
+
+# Build production bundle
+npm run build
+```
+
+---
+
+## 📄 License
 
 MIT — see [LICENSE](LICENSE)

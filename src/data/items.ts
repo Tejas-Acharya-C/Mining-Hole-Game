@@ -82,6 +82,18 @@ export const ITEM_DEFS: Record<ItemId, ItemDef> = {
     id: 'sun_stone', label: 'Sun Stone', description: 'Radiates warmth from deep within.',
     sellValue: 400, rarity: 'epic', color: '#ffcc00', stackSize: 16,
   },
+  facility_key: {
+    id: 'facility_key', label: 'Facility Keycard', description: 'Grants entry to the ancient core levels.',
+    sellValue: 0, rarity: 'epic', color: '#a855f7', stackSize: 1,
+  },
+  core_stabilizer: {
+    id: 'core_stabilizer', label: 'Core Stabilizer', description: 'A high-density stabilizer from the volcanic core.',
+    sellValue: 0, rarity: 'legendary', color: '#f97316', stackSize: 1,
+  },
+  fracture_shard: {
+    id: 'fracture_shard', label: 'Fracture Shard', description: 'An unstable shard reflecting other dimensions.',
+    sellValue: 0, rarity: 'mythic', color: '#ec4899', stackSize: 1,
+  },
 };
 
 export const RARITY_COLORS: Record<string, string> = {

@@ -11,7 +11,6 @@ export interface InputState {
   touchJoyX: number;   // -1..1
   touchJoyY: number;   // -1..1
   touchDigPressed: boolean;
-  touchDigConsumed: boolean;
 }
 
 export interface TouchVirtual {
@@ -29,7 +28,7 @@ const state: InputState = {
   mouseX: 0, mouseY: 0,
   mouseDown: false, mouseClicked: false, rightClicked: false,
   touchJoyX: 0, touchJoyY: 0,
-  touchDigPressed: false, touchDigConsumed: false,
+  touchDigPressed: false,
 };
 
 const touch: TouchVirtual = {
@@ -97,7 +96,6 @@ export function attachInputListeners(canvas: HTMLCanvasElement): () => void {
         if (touch.digTouchId === -1) {
           touch.digTouchId = t.identifier;
           state.touchDigPressed = true;
-          state.touchDigConsumed = false;
         }
       }
     }

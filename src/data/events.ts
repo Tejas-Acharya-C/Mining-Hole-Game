@@ -129,6 +129,30 @@ export const LORE_FRAGMENTS: LoreFragment[] = [
     text: 'They built their greatest achievement at the centre. Not a weapon. Not a power source. A question. Cast in metal that does not rust.',
     depth: 140,
   },
+  {
+    id: 'lore_09',
+    title: 'Facility Log — Incident 44B',
+    text: 'Core temperature rising. Automatic containment grids deployed at Depth 10. The security grids drain energy to repel organic lifesign entries.',
+    depth: 160,
+  },
+  {
+    id: 'lore_10',
+    title: 'Geothermal Core Diagnostics',
+    text: 'Reactor status: unstable. Geothermal core stabilizer required. Thermal shields are venting directly into the surrounding magma fields.',
+    depth: 190,
+  },
+  {
+    id: 'lore_11',
+    title: 'Reality Rift Log',
+    text: 'Dimensional stability at 14%. Micro-fractures appearing at depth 220. Recommended: lock stabilization terminal to prevent complete reality collapse.',
+    depth: 220,
+  },
+  {
+    id: 'lore_12',
+    title: 'Endgame Synthesis',
+    text: 'We were wrong. The core isn\'t a machine. It is a mirror. It doesn\'t create energy; it reflects the intent of whoever touches it.',
+    depth: 235,
+  },
 ];
 
 /** Pick a weighted random event for a given depth */
