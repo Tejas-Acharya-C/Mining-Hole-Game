@@ -1,6 +1,7 @@
 import type { GameState, UpgradeId } from '../types';
 import { UPGRADE_DEFS, upgradeCost } from '../data/upgrades';
 import { playerDepth } from '../systems/GameManager';
+import { isTouchCapable } from '../utils/device';
 import styles from './ShopPanel.module.css';
 
 interface Props {
@@ -25,6 +26,7 @@ const CATEGORY_COLORS = {
 
 export default function ShopPanel({ state, onBuy, onClose }: Props) {
   const { player } = state;
+  const isMobile = isTouchCapable();
   const depth = playerDepth(player);
   const isNoShop = state.mode === 'no_shop';
 
@@ -100,7 +102,9 @@ export default function ShopPanel({ state, onBuy, onClose }: Props) {
             );
           })}
         </div>
-        <p className={styles.hint}>💡 Return to surface (B key) to shop. Upgrades are permanent.</p>
+        <p className={styles.hint}>
+          💡 {isMobile ? 'Open the surface shop when you reach the top and spend your money on upgrades.' : 'Return to surface (B key) to shop. Upgrades are permanent.'}
+        </p>
       </div>
     </div>
   );

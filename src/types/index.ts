@@ -375,6 +375,7 @@ export interface Camera {
   height: number;
   shakeX: number;
   shakeY: number;
+  zoom: number;
 }
 
 // ─── Full Game State ────────────────────────────────────────────────────────────

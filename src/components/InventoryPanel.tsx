@@ -8,14 +8,16 @@ interface Props {
   state: GameState;
   onClose: () => void;
   onSellAll: () => void;
+  onUseEnergyCell?: () => void;
 }
 
 type SortMode = 'rarity' | 'value' | 'qty' | 'name';
 
-export default function InventoryPanel({ state, onClose, onSellAll }: Props) {
+export default function InventoryPanel({ state, onClose, onSellAll, onUseEnergyCell }: Props) {
   const { player } = state;
   const [sort, setSort] = useState<SortMode>('rarity');
   const [filter, setFilter] = useState('');
+  const isMobile = state.settings.touchControls;
 
   const cap      = inventoryCapacity(player.upgrades.backpack);
   const invCount = player.inventory.reduce((s, sl) => s + sl.qty, 0);
@@ -108,8 +110,15 @@ export default function InventoryPanel({ state, onClose, onSellAll }: Props) {
                   <div className={styles.itemVal}>
                     {def.sellValue > 0 ? (
                       <span style={{ color: '#22c55e' }}>${slotValue.toLocaleString()}</span>
+                    ) : def.isConsumable && slot.itemId === 'energy_cell' ? (
+                      <button
+                        className={styles.useBtn}
+                        onClick={e => { e.stopPropagation(); onUseEnergyCell?.(); }}
+                      >
+                        ⚡ USE
+                      </button>
                     ) : (
-                      <span className={styles.consumable}>Use: E</span>
+                      <span className={styles.consumable}>{isMobile ? 'Consumable' : 'Use: E'}</span>
                     )}
                   </div>
                 </div>

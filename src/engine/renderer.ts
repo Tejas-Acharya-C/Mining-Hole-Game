@@ -34,16 +34,38 @@ function getLightCanvas(w: number, h: number): [LightingSurface, LightingContext
 
 // ── Camera ────────────────────────────────────────────────────────────────────
 
-export function computeCamera(state: GameState, canvasW: number, canvasH: number): Camera {
+export function getZoomFactor(canvasW: number, canvasH: number, isMobile: boolean): number {
+  if (!isMobile) return 1.0;
+  const minDim = Math.min(canvasW, canvasH);
+  if (minDim <= 420) {
+    return 0.68; // phone / smaller screens need more world view
+  }
+  if (minDim <= 560) {
+    return 0.72; // compact phones
+  }
+  if (minDim <= 900) {
+    return 0.82; // tablets
+  }
+  return 0.92;
+}
+
+export function computeCamera(state: GameState, canvasW: number, canvasH: number, isMobile?: boolean): Camera {
   const { player } = state;
+  const mobileUI = typeof isMobile === 'boolean' ? isMobile : state.settings.touchControls;
+  const zoom = getZoomFactor(canvasW, canvasH, mobileUI);
+
+  const virtualW = canvasW / zoom;
+  const virtualH = canvasH / zoom;
+
   const px = player.x * TILE_SIZE + TILE_SIZE / 2;
   const py = player.y * TILE_SIZE + TILE_SIZE / 2;
-  const leadY = 80;
+  // Reduce vertical lead on mobile so player remains centered below the top HUD
+  const leadY = mobileUI ? 92 : 70;
 
-  let cx = px - canvasW / 2;
-  let cy = py - canvasH / 2 + leadY;
+  let cx = px - virtualW / 2;
+  let cy = py - virtualH / 2 + leadY;
 
-  const maxX = WORLD_WIDTH_CHUNKS * CHUNK_SIZE * TILE_SIZE - canvasW;
+  const maxX = WORLD_WIDTH_CHUNKS * CHUNK_SIZE * TILE_SIZE - virtualW;
   cx = Math.max(0, Math.min(cx, maxX));
   cy = Math.max(0, cy);
 
@@ -52,7 +74,7 @@ export function computeCamera(state: GameState, canvasW: number, canvasH: number
   const shakeX = shake > 0 ? (Math.random() - 0.5) * shake * 2 : 0;
   const shakeY = shake > 0 ? (Math.random() - 0.5) * shake * 2 : 0;
 
-  return { x: cx, y: cy, width: canvasW, height: canvasH, shakeX, shakeY };
+  return { x: cx, y: cy, width: virtualW, height: virtualH, shakeX, shakeY, zoom };
 }
 
 // ── Main render ───────────────────────────────────────────────────────────────
@@ -65,12 +87,16 @@ export function render(
   wm: WorldManager,
   fps?: number,
 ): void {
-  const { width: cw, height: ch } = camera;
-  ctx.clearRect(0, 0, cw, ch);
+  const { width: cw, height: ch, zoom } = camera;
+  
+  // Clear the actual screen area
+  ctx.clearRect(0, 0, cw * zoom, ch * zoom);
 
-  // Apply shake transform
+  ctx.save();
+  ctx.scale(zoom, zoom);
+
+  // Apply shake transform in virtual space
   if (camera.shakeX !== 0 || camera.shakeY !== 0) {
-    ctx.save();
     ctx.translate(camera.shakeX, camera.shakeY);
   }
 
@@ -154,7 +180,7 @@ export function render(
     drawTouchJoystick(ctx);
   }
 
-  if (camera.shakeX !== 0 || camera.shakeY !== 0) ctx.restore();
+  ctx.restore();
 }
 
 // ── Tile rendering ────────────────────────────────────────────────────────────
@@ -375,38 +401,40 @@ function drawLighting(ctx: CanvasRenderingContext2D, state: GameState, cam: Came
   lCtx.arc(px, py, lightPx, 0, Math.PI * 2);
   lCtx.fill();
 
-  // Glowing tile light contributions
+  // Glowing tile light contributions (skipped on low lighting quality to optimize mobile CPU/GPU render speed)
   const startCol = Math.max(0, Math.floor(cam.x / TILE_SIZE));
   const endCol   = Math.min(WORLD_WIDTH_CHUNKS * CHUNK_SIZE - 1, Math.ceil((cam.x + cam.width) / TILE_SIZE));
   const startRow = Math.max(0, Math.floor(cam.y / TILE_SIZE));
   const endRow   = Math.ceil((cam.y + cam.height) / TILE_SIZE);
 
-  for (let row = startRow; row <= endRow; row++) {
-    for (let col = startCol; col <= endCol; col++) {
-      const tile = wm.getTile(row, col);
-      if (!tile || !tile.revealed) continue;
-      let isGlow = tile.kind === 'crystal' || tile.kind === 'void_stone'
-        || tile.kind === 'energy_node' || tile.kind === 'magma_rock' || tile.kind === 'artifact';
-      if (!isGlow && player.upgrades.ore_detector > 0) {
-        const isOre = ['coal', 'iron', 'silver', 'gold', 'ruby', 'sapphire', 'emerald',
-          'fossil', 'relic', 'obsidian', 'permafrost', 'ancient_brick'].includes(tile.kind);
-        if (isOre) {
-          const dist = Math.hypot(player.x - col, player.y - row);
-          if (dist <= player.upgrades.ore_detector * 3) {
-            isGlow = true;
+  if (state.settings.lightingQuality !== 'low') {
+    for (let row = startRow; row <= endRow; row++) {
+      for (let col = startCol; col <= endCol; col++) {
+        const tile = wm.getTile(row, col);
+        if (!tile || !tile.revealed) continue;
+        let isGlow = tile.kind === 'crystal' || tile.kind === 'void_stone'
+          || tile.kind === 'energy_node' || tile.kind === 'magma_rock' || tile.kind === 'artifact';
+        if (!isGlow && player.upgrades.ore_detector > 0) {
+          const isOre = ['coal', 'iron', 'silver', 'gold', 'ruby', 'sapphire', 'emerald',
+            'fossil', 'relic', 'obsidian', 'permafrost', 'ancient_brick'].includes(tile.kind);
+          if (isOre) {
+            const dist = Math.hypot(player.x - col, player.y - row);
+            if (dist <= player.upgrades.ore_detector * 3) {
+              isGlow = true;
+            }
           }
         }
+        if (!isGlow) continue;
+        const tx = col * TILE_SIZE + TILE_SIZE / 2 - cam.x;
+        const ty = row * TILE_SIZE + TILE_SIZE / 2 - cam.y;
+        const gGrad = lCtx.createRadialGradient(tx, ty, 0, tx, ty, TILE_SIZE * 3);
+        gGrad.addColorStop(0, 'rgba(0,0,0,0.9)');
+        gGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        lCtx.fillStyle = gGrad;
+        lCtx.beginPath();
+        lCtx.arc(tx, ty, TILE_SIZE * 3, 0, Math.PI * 2);
+        lCtx.fill();
       }
-      if (!isGlow) continue;
-      const tx = col * TILE_SIZE + TILE_SIZE / 2 - cam.x;
-      const ty = row * TILE_SIZE + TILE_SIZE / 2 - cam.y;
-      const gGrad = lCtx.createRadialGradient(tx, ty, 0, tx, ty, TILE_SIZE * 3);
-      gGrad.addColorStop(0, 'rgba(0,0,0,0.9)');
-      gGrad.addColorStop(1, 'rgba(0,0,0,0)');
-      lCtx.fillStyle = gGrad;
-      lCtx.beginPath();
-      lCtx.arc(tx, ty, TILE_SIZE * 3, 0, Math.PI * 2);
-      lCtx.fill();
     }
   }
 

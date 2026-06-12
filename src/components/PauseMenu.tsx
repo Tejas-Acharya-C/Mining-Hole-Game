@@ -1,3 +1,4 @@
+import { isTouchCapable } from '../utils/device';
 import styles from './PauseMenu.module.css';
 
 type PauseAction = 'resume' | 'save' | 'quit' | 'settings' | 'inventory' | 'statistics' | 'quests';
@@ -10,6 +11,8 @@ interface Props {
 }
 
 export default function PauseMenu({ onAction, onSell, hasInventory, atSurface }: Props) {
+  const isMobile = isTouchCapable();
+
   return (
     <div className={styles.overlay}>
       <div className={styles.panel}>
@@ -30,7 +33,9 @@ export default function PauseMenu({ onAction, onSell, hasInventory, atSurface }:
           <button className={styles.btn} onClick={() => onAction('save')}>💾 Save</button>
           <button className={`${styles.btn} ${styles.danger}`} onClick={() => onAction('quit')}>✕ Save & Quit</button>
         </div>
-        <p className={styles.hint}>Esc / P to resume</p>
+        <p className={styles.hint}>
+          {isMobile ? 'Tap Resume or the top pause button to continue.' : 'Esc / P to resume'}
+        </p>
       </div>
     </div>
   );

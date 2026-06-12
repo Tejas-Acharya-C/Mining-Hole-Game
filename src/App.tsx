@@ -16,6 +16,7 @@ import { render, computeCamera } from './engine/renderer';
 import { attachInputListeners, isAnyKeyDown, getInput, consumeClick } from './engine/input';
 import { TILE_SIZE, SURFACE_TILE_ROW, WORLD_WIDTH_CHUNKS } from './data/tiles';
 import { moveCooldown, digCooldown } from './data/upgrades';
+import { shouldUseMobileUI } from './utils/device';
 import { ACHIEVEMENT_DEFS } from './data/achievements';
 import { BIOME_DEFS } from './data/biomes';
 
@@ -54,6 +55,20 @@ export default function App() {
   const prevAchRef    = useRef<Set<string>>(new Set());
   const [, forceUpdate] = useState(0);
   const hudTimerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const [isMobileUI, setIsMobileUI] = useState(false);
+
+  useEffect(() => {
+    const updateDeviceState = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      setIsMobileUI(shouldUseMobileUI(width, height));
+    };
+
+    updateDeviceState();
+    window.addEventListener('resize', updateDeviceState);
+    return () => window.removeEventListener('resize', updateDeviceState);
+  }, []);
 
   // ── Game loop ──────────────────────────────────────────────────────────────
   const gameLoop = useCallback((timestamp: number) => {
@@ -137,7 +152,7 @@ export default function App() {
 
         // Mouse click — adjacent tile only
         if (inp.mouseClicked) {
-          const cam    = computeCamera(state, canvas.width, canvas.height);
+          const cam    = computeCamera(state, canvas.width, canvas.height, isMobileUI);
           const worldX = inp.mouseX + cam.x;
           const worldY = inp.mouseY + cam.y;
           const col    = Math.floor(worldX / TILE_SIZE);
@@ -203,10 +218,11 @@ export default function App() {
         if (state.settings.soundEnabled) audioManager.lowEnergy();
       }
 
-      // Spawn ambient particles
+      // Spawn ambient particles with lower density on low-quality mobile devices
       const currentBiomeDef = BIOME_DEFS[state.currentBiome];
-      if (canvas && currentBiomeDef && currentBiomeDef.ambientParticle && Math.random() < 0.08) {
-        const cam = computeCamera(state, canvas.width, canvas.height);
+      const ambientChance = state.settings.particleQuality === 'low' ? 0.03 : 0.08;
+      if (canvas && currentBiomeDef && currentBiomeDef.ambientParticle && Math.random() < ambientChance) {
+        const cam = computeCamera(state, canvas.width, canvas.height, isMobileUI);
         const px = cam.x + Math.random() * cam.width;
         const py = cam.y + Math.random() * cam.height;
         
@@ -290,7 +306,7 @@ export default function App() {
     if (state.screen === 'playing') {
       const ctx2d = canvas.getContext('2d');
       if (ctx2d) {
-        const cam = computeCamera(state, canvas.width, canvas.height);
+        const cam = computeCamera(state, canvas.width, canvas.height, isMobileUI);
         render(ctx2d, state, cam, pmInstance, wmInstance!, fpsRef.current);
       }
     }
@@ -446,6 +462,20 @@ export default function App() {
     useTeleport(state, wmInstance);
   }, []);
 
+  const handleUseEnergyCell = useCallback(() => {
+    const state = stateRef.current;
+    if (!state) return;
+    consumeEnergyCell(state, pmInstance);
+    forceUpdate(n => n + 1);
+  }, []);
+
+  const handleSellFromTouch = useCallback(() => {
+    const state = stateRef.current;
+    if (!state) return;
+    sellInventory(state);
+    forceUpdate(n => n + 1);
+  }, []);
+
   const handlePlayAgain = useCallback((mode: GameState['mode'] = 'normal') => {
     audioManager.menuClick();
     SaveManager.deleteSave();
@@ -471,6 +501,7 @@ export default function App() {
   const state     = stateRef.current;
   const atSurface = state ? state.player.y <= SURFACE_TILE_ROW + 2 : false;
   const isMobile  = state?.settings.touchControls ?? false;
+  const useMobileUI = isMobile || isMobileUI;
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
@@ -497,10 +528,12 @@ export default function App() {
         <>
           <HUD
             state={state}
+            useMobileUI={useMobileUI}
             onPause={() => setGameScreen('paused')}
             onShop={() => { if (atSurface) setGameScreen('shop'); }}
             onInventory={() => setGameScreen('inventory')}
             onTeleport={state.player.teleportCharges > 0 ? handleUseTeleport : undefined}
+            onUseEnergyCell={handleUseEnergyCell}
           />
           <TutorialHint state={state} />
           {state.atEndgameStabilizer && (
@@ -519,9 +552,14 @@ export default function App() {
               }}
             />
           )}
-          {isMobile && (
+          {useMobileUI && (
             <TouchControls
+              state={state}
               onTeleport={state.player.teleportCharges > 0 ? handleUseTeleport : undefined}
+              onInventory={() => setGameScreen('inventory')}
+              onShop={() => { if (atSurface) setGameScreen('shop'); }}
+              onSell={handleSellFromTouch}
+              onUseEnergyCell={handleUseEnergyCell}
             />
           )}
         </>
@@ -549,6 +587,7 @@ export default function App() {
           state={state}
           onClose={() => setGameScreen('playing')}
           onSellAll={handleSellAll}
+          onUseEnergyCell={handleUseEnergyCell}
         />
       )}
 

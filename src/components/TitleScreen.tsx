@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { GameMode } from '../types';
+import { isTouchCapable } from '../utils/device';
 import styles from './TitleScreen.module.css';
 
 interface Props {
@@ -28,6 +29,8 @@ export default function TitleScreen({
   ];
 
   const parsedSeed = seedText ? parseInt(seedText) : undefined;
+
+  const isMobile = isTouchCapable();
 
   return (
     <div className={styles.root}>
@@ -138,15 +141,28 @@ export default function TitleScreen({
         {showControls && (
           <div className={styles.controls}>
             <div className={styles.ctrlGrid}>
-              <span>THRUST / DIG DIRECTION</span>  <span>W,A,S,D / Arrow Keys</span>
-              <span>ACTIVATE DRILL</span>          <span>Z / Space / Left Click tile</span>
-              <span>RESTORE CELL</span>            <span>F (Consumes energy cell)</span>
-              <span>SELL METALS</span>             <span>E (Stand on Surface Depot)</span>
-              <span>UPGRADE SUIT</span>            <span>B (Stand on Surface Depot)</span>
-              <span>INVENTORY STORAGE</span>       <span>I</span>
-              <span>MISSION QUESTS</span>          <span>Q</span>
-              <span>SURFACE BEACON</span>          <span>T (Teleport charges required)</span>
-              <span>PAUSE TERMINAL</span>          <span>Esc / P</span>
+              {isMobile ? (
+                <>
+                  <span>MOVE / DIG</span>        <span>Use the left joystick and tap ⛏ to mine</span>
+                  <span>OPEN INVENTORY</span>     <span>Tap 🎒</span>
+                  <span>USE ENERGY CELL</span>    <span>Tap 🔋 when available</span>
+                  <span>SURFACE SHOP</span>       <span>Tap 🛒 on surface</span>
+                  <span>TELEPORT</span>          <span>Tap ✨ when charged</span>
+                  <span>PAUSE</span>             <span>Tap ⏸ in the top bar</span>
+                </>
+              ) : (
+                <>
+                  <span>THRUST / DIG DIRECTION</span>  <span>W,A,S,D / Arrow Keys</span>
+                  <span>ACTIVATE DRILL</span>          <span>Z / Space / Left Click tile</span>
+                  <span>RESTORE CELL</span>            <span>F (Consumes energy cell)</span>
+                  <span>SELL METALS</span>             <span>E (Stand on Surface Depot)</span>
+                  <span>UPGRADE SUIT</span>            <span>B (Stand on Surface Depot)</span>
+                  <span>INVENTORY STORAGE</span>       <span>I</span>
+                  <span>MISSION QUESTS</span>          <span>Q</span>
+                  <span>SURFACE BEACON</span>          <span>T (Teleport charges required)</span>
+                  <span>PAUSE TERMINAL</span>          <span>Esc / P</span>
+                </>
+              )}
             </div>
           </div>
         )}

@@ -15,9 +15,9 @@
   background: rgba(10, 8, 20, 0.92);
   border: 1px solid rgba(168, 85, 247, 0.2);
   border-radius: 16px;
-  padding: 24px 28px;
+  padding: calc(24px + env(safe-area-inset-top, 0px)) calc(28px + env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) calc(28px + env(safe-area-inset-left, 0px));
   width: min(680px, 95vw);
-  max-height: 85vh;
+  max-height: min(90vh, calc(100vh - (env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px) + 36px)));
   overflow-y: auto;
   box-shadow: 
     0 10px 40px rgba(0, 0, 0, 0.8),

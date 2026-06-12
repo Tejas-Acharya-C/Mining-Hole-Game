@@ -1,6 +1,8 @@
 import type { Settings } from '../types';
 
 export function defaultSettings(): Settings {
+  const hasTouch = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
   return {
     // Audio
     soundEnabled:    true,
@@ -10,11 +12,11 @@ export function defaultSettings(): Settings {
     // Graphics
     showFPS:         false,
     screenShake:     true,
-    particleQuality: 'medium',
-    lightingQuality: 'medium',
+    particleQuality: hasTouch ? 'low' : 'medium',
+    lightingQuality: hasTouch ? 'low' : 'medium',
     // Gameplay
     showTutorial:    true,
-    touchControls:   false,
+    touchControls:   hasTouch,
     autoSell:        true,
     autosaveInterval: 30,
     // Accessibility
@@ -26,3 +28,4 @@ export function defaultSettings(): Settings {
     largerText:      false,
   };
 }
+
