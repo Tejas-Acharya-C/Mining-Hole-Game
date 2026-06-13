@@ -44,3 +44,9 @@ coverage/
 # Local scratch / experiment files
 tmp_*
 *.tmp
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
