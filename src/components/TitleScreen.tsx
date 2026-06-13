@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { GameMode } from '../types';
+import type { GameMode, PrestigeData } from '../types';
 import { isTouchCapable } from '../utils/device';
 import styles from './TitleScreen.module.css';
 
@@ -10,10 +10,11 @@ interface Props {
   onChallenge: (mode: GameMode, seed?: number, modifiers?: string[]) => void;
   challengeModeUnlocked: boolean;
   prestigeCount: number;
+  prestigeData?: PrestigeData;
 }
 
 export default function TitleScreen({
-  hasSave, onNewGame, onContinue, onChallenge, challengeModeUnlocked, prestigeCount,
+  hasSave, onNewGame, onContinue, onChallenge, challengeModeUnlocked, prestigeCount, prestigeData,
 }: Props) {
   const [showModes, setShowModes] = useState(false);
   const [showControls, setShowControls] = useState(false);
@@ -52,7 +53,15 @@ export default function TitleScreen({
 
         {prestigeCount > 0 && (
           <div className={styles.prestigeBadge}>
-            👑 Prestige Rank {prestigeCount} (+{prestigeCount * 50}% sell multiplier)
+            👑 Expedition Rank {prestigeCount}
+            {prestigeData && (
+              <div style={{ fontSize: '11px', marginTop: '4px', opacity: 0.9, fontWeight: 'normal' }}>
+                Active Bonuses:
+                {prestigeData.bonuses.oreValueBonus > 0 && ` · +${Math.round(prestigeData.bonuses.oreValueBonus * 100)}% Ore Value`}
+                {prestigeData.bonuses.maxEnergyBonus > 0 && ` · +${prestigeData.bonuses.maxEnergyBonus} Max Energy`}
+                {prestigeData.bonuses.inventoryBonus > 0 && ` · +${prestigeData.bonuses.inventoryBonus} Cargo Slot${prestigeData.bonuses.inventoryBonus > 1 ? 's' : ''}`}
+              </div>
+            )}
           </div>
         )}
 

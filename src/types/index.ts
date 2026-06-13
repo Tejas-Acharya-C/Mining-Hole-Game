@@ -146,7 +146,8 @@ export interface InventorySlot {
 export type UpgradeId =
   | 'shovel' | 'backpack' | 'battery' | 'lantern' | 'boots'
   | 'drill' | 'jetpack' | 'scanner' | 'critical_chance'
-  | 'ore_detector' | 'teleport' | 'artifact_sense' | 'reinforced_picks';
+  | 'ore_detector' | 'teleport' | 'artifact_sense' | 'reinforced_picks'
+  | 'market_uplink';
 
 export interface UpgradeDef {
   id: UpgradeId;
@@ -168,7 +169,7 @@ export type QuestId =
   | 'q_reach_200' | 'q_find_void' | 'q_max_battery' | 'q_collect_all_gems'
   | 'q_speed_50' | 'q_no_surface_run';
 
-export type QuestStatus = 'locked' | 'active' | 'completed' | 'claimed';
+export type QuestStatus = 'locked' | 'active' | 'completed' | 'claimed' | 'failed';
 
 export interface QuestDef {
   id: QuestId;
@@ -177,6 +178,7 @@ export interface QuestDef {
   objective: QuestObjective;
   reward: QuestReward;
   unlockAfter?: QuestId;
+  timeLimit?: number; // Time limit in seconds
 }
 
 export type QuestObjective =
@@ -378,6 +380,16 @@ export interface Camera {
   zoom: number;
 }
 
+export interface PrestigeData {
+  expeditionCount: number;
+  completedEndings: string[];
+  bonuses: {
+    oreValueBonus: number;
+    maxEnergyBonus: number;
+    inventoryBonus: number;
+  };
+}
+
 // ─── Full Game State ────────────────────────────────────────────────────────────
 
 export interface GameState {
@@ -419,13 +431,38 @@ export interface GameState {
 
   // Depth pressure effect
   depthPressureAlpha: number;  // 0..1 vignette intensity
-
+  inputLockTimer?: number;     // character control lock duration
+  
   // First-run intro done
   introComplete: boolean;
 
   // Biome transition announcement
   biomeTransition?: {
     name: string;
+    life: number;
+    maxLife: number;
+  };
+
+  // Discovery Alert announcement
+  discoveryAlert?: {
+    title: string;
+    subtitle: string;
+    color: string;
+    life: number;
+    maxLife: number;
+  };
+
+  // Quest Complete announcement
+  questAlert?: {
+    title: string;
+    reward: string;
+    life: number;
+    maxLife: number;
+  };
+
+  // Depth Record announcement
+  depthAlert?: {
+    depth: number;
     life: number;
     maxLife: number;
   };
@@ -444,11 +481,15 @@ export interface GameState {
   artifactActivated?: boolean;
   facilityUnlocked?: boolean;
   prestigeCount?: number;
+  prestigeData?: PrestigeData;
   unlockedEnding?: 'standard' | 'completionist' | 'secret';
   chosenSeed?: number;
   activeModifiers?: string[];
   atEndgameStabilizer?: boolean;
   hitStopTimer?: number;
+  tutorialComplete?: boolean;
+  prestigeHintSeen?: boolean;
+  activePrestigeHintPopup?: boolean;
 }
 
 // ─── Save format ───────────────────────────────────────────────────────────────
@@ -477,9 +518,12 @@ export interface SaveData {
   artifactActivated?: boolean;
   facilityUnlocked?: boolean;
   prestigeCount?: number;
+  prestigeData?: PrestigeData;
   unlockedEnding?: 'standard' | 'completionist' | 'secret';
   chosenSeed?: number;
   activeModifiers?: string[];
+  tutorialComplete?: boolean;
+  prestigeHintSeen?: boolean;
 }
 
 export interface SerializedPlayer {

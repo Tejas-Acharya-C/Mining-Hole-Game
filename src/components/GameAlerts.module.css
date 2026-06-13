@@ -1,0 +1,195 @@
+.container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none; /* Let all clicks pass through to game canvas/HUD buttons */
+  z-index: 1200;
+  overflow: hidden;
+}
+
+/* ── Discovery Alert (Top Center) ── */
+.discoveryAlert {
+  position: absolute;
+  top: calc(76px + env(safe-area-inset-top, 0px)); /* Align below HUD */
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(340px, calc(100vw - 32px));
+  background: rgba(10, 8, 20, 0.95);
+  border: 1px solid var(--alert-color, var(--color-purple));
+  border-radius: 12px;
+  padding: 10px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+  pointer-events: auto; /* Allow closing or clicking if needed */
+  animation: slideDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideDown {
+  from { transform: translate(-50%, -40px); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
+
+.glowPulse {
+  position: absolute;
+  inset: -1px;
+  border-radius: 12px;
+  opacity: 0;
+  filter: blur(14px);
+  pointer-events: none;
+  animation: pulseGlow 0.45s ease-out forwards;
+}
+
+@keyframes pulseGlow {
+  0% { transform: scale(0.92); opacity: 0.65; }
+  100% { transform: scale(1.15); opacity: 0; }
+}
+
+.alertHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alertIcon {
+  font-size: 16px;
+}
+
+.alertTitle {
+  font-family: var(--font-tech);
+  font-size: 10.5px;
+  font-weight: bold;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(255,255,255,0.15);
+}
+
+.alertSubtitle {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #f8fafc;
+  letter-spacing: 0.5px;
+}
+
+/* ── Quest Complete (Top Right, underneath milestone) ── */
+.questAlert {
+  position: absolute;
+  top: calc(152px + env(safe-area-inset-top, 0px)); /* positioned neatly below HUD & Milestone toast */
+  right: 20px;
+  width: min(340px, calc(100vw - 40px));
+  background: linear-gradient(135deg, rgba(10, 8, 20, 0.96), rgba(6, 6, 14, 0.98));
+  border: 1px solid var(--color-green);
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  box-shadow: 
+    0 8px 30px rgba(0, 0, 0, 0.6),
+    0 0 15px rgba(16, 185, 129, 0.15);
+  pointer-events: auto;
+  animation: slideLeft 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideLeft {
+  from { transform: translateX(120%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.questHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.questIcon {
+  font-size: 18px;
+}
+
+.questTitle {
+  font-family: var(--font-tech);
+  font-size: 10.5px;
+  font-weight: bold;
+  color: var(--color-green);
+  letter-spacing: 1px;
+}
+
+.questName {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #f8fafc;
+  letter-spacing: 0.5px;
+}
+
+.questReward {
+  font-family: var(--font-tech);
+  font-size: 10px;
+  color: var(--color-gold);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* ── Depth Record (Center Splashes) ── */
+.depthAlert {
+  position: absolute;
+  top: 36%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(10, 8, 20, 0.9);
+  border: 1px solid var(--color-gold);
+  border-radius: 16px;
+  padding: 16px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 
+    0 10px 40px rgba(0, 0, 0, 0.75),
+    0 0 25px rgba(251, 191, 36, 0.2);
+  animation: splashIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes splashIn {
+  from { transform: translate(-50%, -20%) scale(0.9); opacity: 0; }
+  to { transform: translate(-50%, -50%) scale(1.0); opacity: 1; }
+}
+
+.depthHeader {
+  font-family: var(--font-tech);
+  font-size: 10px;
+  font-weight: bold;
+  color: var(--color-gold);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.depthValue {
+  font-size: 38px;
+  font-weight: 950;
+  color: #f8fafc;
+  font-family: var(--font-tech);
+  line-height: 1.1;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 15px rgba(255, 255, 255, 0.15);
+}
+
+.depthSub {
+  font-size: 9.5px;
+  color: #71717a;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* ── Mobile Layouts ── */
+@media (max-width: 480px) {
+  .questAlert {
+    right: 12px;
+    width: calc(100vw - 24px);
+    top: calc(144px + env(safe-area-inset-top, 0px));
+  }
+  
+  .discoveryAlert {
+    top: calc(70px + env(safe-area-inset-top, 0px));
+  }
+}

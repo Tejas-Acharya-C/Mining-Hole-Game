@@ -217,6 +217,12 @@ function drawTiles(ctx: CanvasRenderingContext2D, state: GameState, cam: Camera,
         ctx.fillRect(sx, sy, TILE_SIZE, 5);
       }
 
+      // Ancient terminal
+      if (tile.kind === 'ancient_terminal') {
+        drawAncientTerminal(ctx, sx, sy, state);
+        continue;
+      }
+
       // Sell point
       if (tile.kind === 'sell_point') {
         drawSellPoint(ctx, sx, sy);
@@ -263,6 +269,53 @@ function drawTiles(ctx: CanvasRenderingContext2D, state: GameState, cam: Camera,
         ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
       }
     }
+  }
+}
+
+function drawAncientTerminal(ctx: CanvasRenderingContext2D, sx: number, sy: number, state: GameState): void {
+  // Draw terminal block
+  ctx.fillStyle = '#1e3a8a';
+  ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
+  ctx.fillStyle = '#3b82f6';
+  ctx.fillRect(sx + 2, sy + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+  
+  // Screen on terminal
+  ctx.fillStyle = '#1d4ed8';
+  ctx.fillRect(sx + 4, sy + 4, TILE_SIZE - 8, TILE_SIZE - 10);
+  ctx.fillStyle = '#60a5fa';
+  ctx.fillRect(sx + 5, sy + 5, TILE_SIZE - 10, TILE_SIZE - 12);
+  
+  // Keyboard/console area
+  ctx.fillStyle = '#1e40af';
+  ctx.fillRect(sx + 3, sy + TILE_SIZE - 5, TILE_SIZE - 6, 3);
+  
+  // Floating label when terminal guidance is active
+  const hasArtifact = state.player.inventory.some(s => s.itemId === 'artifact' && s.qty > 0);
+  const hasKey = state.player.inventory.some(s => s.itemId === 'facility_key' && s.qty > 0);
+  const relevant = (hasArtifact && !state.artifactActivated) || (hasKey && !state.facilityUnlocked);
+  
+  if (relevant) {
+    ctx.save();
+    // Pulsing alpha
+    const pulse = Math.sin(Date.now() / 300) * 0.15 + 0.85;
+    ctx.font = 'bold 9px sans-serif';
+    ctx.textAlign = 'center';
+    
+    // Label background
+    const labelText = "ANCIENT TERMINAL";
+    const labelWidth = ctx.measureText(labelText).width;
+    ctx.fillStyle = 'rgba(10, 8, 24, 0.88)';
+    ctx.fillRect(sx + TILE_SIZE / 2 - labelWidth / 2 - 4, sy - 17, labelWidth + 8, 13);
+    
+    // Border
+    ctx.strokeStyle = `rgba(59, 130, 246, ${pulse})`;
+    ctx.lineWidth = 0.75;
+    ctx.strokeRect(sx + TILE_SIZE / 2 - labelWidth / 2 - 4, sy - 17, labelWidth + 8, 13);
+    
+    // Text
+    ctx.fillStyle = `rgba(96, 165, 250, ${pulse})`;
+    ctx.fillText(labelText, sx + TILE_SIZE / 2, sy - 8);
+    ctx.restore();
   }
 }
 
@@ -531,36 +584,90 @@ function drawPlayer(ctx: CanvasRenderingContext2D, state: GameState, cam: Camera
 
   ctx.restore();
 
-  // Artifact Sense Compass
-  if (player.upgrades.artifact_sense > 0) {
-    const targetRow = 152;
-    const targetCol = 24;
-    const targetX = targetCol * TILE_SIZE + TILE_SIZE / 2;
-    const targetY = targetRow * TILE_SIZE + TILE_SIZE / 2;
-    const px = player.x * TILE_SIZE + TILE_SIZE / 2;
-    const py = player.y * TILE_SIZE + TILE_SIZE / 2;
-    const dx = targetX - px;
-    const dy = targetY - py;
-    const angle = Math.atan2(dy, dx);
-    const arrowDist = 24;
-    const ax = sx + s / 2 + Math.cos(angle) * arrowDist;
-    const ay = sy + s / 2 + Math.sin(angle) * arrowDist;
+  // Discovery Scanner Compass
+  const scannerLevel = player.upgrades.artifact_sense ?? 0;
+  if (scannerLevel > 0) {
+    let targetCol = 24;
+    let targetRow = 152;
+    let requiredLevel = 1;
 
-    ctx.save();
-    ctx.translate(ax, ay);
-    ctx.rotate(angle);
-    ctx.fillStyle = '#f59e0b';
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(8, 0);
-    ctx.lineTo(-4, -5);
-    ctx.lineTo(-1, 0);
-    ctx.lineTo(-4, 5);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
+    const midCol = Math.floor((WORLD_WIDTH_CHUNKS * CHUNK_SIZE) / 2);
+    const terminalCol = midCol - 7;
+    const terminalRow = SURFACE_TILE_ROW;
+
+    const stage = state.objectiveStage || 'new_game';
+    const hasArtifact = player.inventory.some(s => s.itemId === 'artifact');
+    const hasFacilityKey = player.inventory.some(s => s.itemId === 'facility_key');
+    const hasCoreStabilizer = player.inventory.some(s => s.itemId === 'core_stabilizer');
+    const hasFractureShard = player.inventory.some(s => s.itemId === 'fracture_shard');
+
+    if (!state.secretFound && !hasArtifact && (stage === 'new_game' || stage === 'early_dig' || stage === 'find_artifact')) {
+      targetCol = 24;
+      targetRow = 152;
+      requiredLevel = 1;
+    } else if (hasArtifact && !state.artifactActivated) {
+      targetCol = terminalCol;
+      targetRow = terminalRow;
+      requiredLevel = 1;
+    } else if (!hasFacilityKey && !state.facilityUnlocked && (stage === 'terminal_activated' || stage === 'find_facility_key')) {
+      targetCol = 23;
+      targetRow = 168;
+      requiredLevel = 2;
+    } else if (hasFacilityKey && !state.facilityUnlocked) {
+      targetCol = terminalCol;
+      targetRow = terminalRow;
+      requiredLevel = 1;
+    } else if (!state.statistics.biomesDiscovered.has('world_core') && (stage === 'facility_unlocked' || stage === 'find_world_core')) {
+      targetCol = 23;
+      targetRow = 202;
+      requiredLevel = 3;
+    } else if (!hasCoreStabilizer && (stage === 'core_reached' || stage === 'find_fracture' || !state.statistics.biomesDiscovered.has('reality_fracture'))) {
+      targetCol = 23;
+      targetRow = 202;
+      requiredLevel = 4;
+    } else if (!hasFractureShard && (stage === 'fracture_reached' || !state.atEndgameStabilizer)) {
+      targetCol = 22;
+      targetRow = 232;
+      requiredLevel = 5;
+    } else {
+      targetCol = 23;
+      targetRow = 232;
+      requiredLevel = 6;
+    }
+
+    if (scannerLevel >= requiredLevel) {
+      const targetX = targetCol * TILE_SIZE + TILE_SIZE / 2;
+      const targetY = targetRow * TILE_SIZE + TILE_SIZE / 2;
+      const px = player.x * TILE_SIZE + TILE_SIZE / 2;
+      const py = player.y * TILE_SIZE + TILE_SIZE / 2;
+      const dx = targetX - px;
+      const dy = targetY - py;
+      const dist = Math.hypot(dx, dy) / TILE_SIZE; // in tiles
+      const maxRange = scannerLevel * 50;
+
+      if (dist <= maxRange) {
+        const angle = Math.atan2(dy, dx);
+        const arrowDist = 24;
+        const ax = sx + s / 2 + Math.cos(angle) * arrowDist;
+        const ay = sy + s / 2 + Math.sin(angle) * arrowDist;
+
+        ctx.save();
+        ctx.translate(ax, ay);
+        ctx.rotate(angle);
+        ctx.fillStyle = '#f59e0b';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(8, 0);
+        ctx.lineTo(-4, -5);
+        ctx.lineTo(-1, 0);
+        ctx.lineTo(-4, 5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
   }
 }
 
@@ -823,10 +930,15 @@ function drawBiomeTransition(ctx: CanvasRenderingContext2D, state: GameState, cw
 
   ctx.save();
   let alpha = 1;
-  if (trans.life > 2.5) {
-    alpha = (3.0 - trans.life) / 0.5; // fade in over 0.5s
-  } else if (trans.life < 0.8) {
-    alpha = trans.life / 0.8; // fade out over 0.8s
+  let yOffset = 0;
+
+  // Animate slide-in and fade-out based on 2.5s duration
+  if (trans.life > 2.0) {
+    alpha = (2.5 - trans.life) / 0.5; // fade in over 0.5s
+    yOffset = -20 * (trans.life - 2.0) / 0.5; // slide down from y - 20
+  } else if (trans.life < 0.7) {
+    alpha = trans.life / 0.7; // fade out over 0.7s
+    yOffset = 20 * (1 - trans.life / 0.7); // slide down out of view
   }
   alpha = Math.max(0, Math.min(1, alpha));
   
@@ -835,13 +947,23 @@ function drawBiomeTransition(ctx: CanvasRenderingContext2D, state: GameState, cw
   const w = 340;
   const h = 54;
   const x = (cw - w) / 2;
-  const y = 70; // place below HUD
+  const y = 74 + yOffset; // place below HUD
 
-  ctx.fillStyle = 'rgba(15, 15, 25, 0.7)';
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+  // Dynamic biome tinted background
+  const biomeDef = BIOME_DEFS[state.currentBiome];
+  const biomeColor = biomeDef ? (biomeDef.ambientColor === '#05050c' ? '#a855f7' : biomeDef.ambientColor) : '#a855f7';
+  const rgb = hexToRgb(biomeColor);
+
+  const grad = ctx.createLinearGradient(x, y, x + w, y);
+  grad.addColorStop(0, 'rgba(10, 8, 20, 0.96)');
+  grad.addColorStop(0.5, `rgba(${rgb}, 0.16)`);
+  grad.addColorStop(1, 'rgba(10, 8, 20, 0.96)');
+  ctx.fillStyle = grad;
+
+  ctx.strokeStyle = `rgba(${rgb}, 0.65)`;
   ctx.lineWidth = 1.5;
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-  ctx.shadowBlur = 10;
+  ctx.shadowColor = `rgba(${rgb}, 0.35)`;
+  ctx.shadowBlur = 12;
 
   roundRect(ctx, x, y, w, h, 10);
   ctx.fill();

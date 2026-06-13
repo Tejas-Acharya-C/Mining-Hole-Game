@@ -60,17 +60,63 @@ function generateCaveMap(rng: () => number, biome: BiomeId): boolean[][] {
 
 // ── Ore vein generator ────────────────────────────────────────────────────────
 
+export function isWithinLandmarkSafeZone(cx: number, cy: number, r: number, c: number): boolean {
+  if (cx !== 1) return false;
+  if (cy === 9) {
+    const dist = Math.hypot(r - 8, c - 8);
+    return dist < 7;
+  }
+  if (cy === 10 || cy === 12 || cy === 14) {
+    const dist = Math.hypot(r - 8, c - 7);
+    return dist < 7;
+  }
+  return false;
+}
+
+function pickOreKindForBiome(biome: BiomeId, rng: () => number): TileKind | null {
+  const biomeDef = BIOME_DEFS[biome];
+  if (!biomeDef || biomeDef.ores.length === 0) return null;
+  const totalWeight = biomeDef.ores.reduce((sum, ore) => sum + ore.weight, 0);
+  if (totalWeight <= 0) return null;
+  let r = rng() * totalWeight;
+  for (const ore of biomeDef.ores) {
+    r -= ore.weight;
+    if (r <= 0) return ore.kind;
+  }
+  return biomeDef.ores[0].kind;
+}
+
+function getOreSizeLimit(kind: TileKind): number {
+  if (kind === 'relic') return 1;
+  if (kind === 'void_stone') return 2;
+  if (kind === 'ruby' || kind === 'sapphire' || kind === 'emerald') return 3;
+  if (kind === 'gold' || kind === 'ancient_brick') return 4;
+  if (kind === 'iron') return 6;
+  if (kind === 'coal') return 8;
+  return Infinity;
+}
+
+function getFillerOreForBiome(biome: BiomeId): TileKind | null {
+  if (biome === 'lava_zone' || biome === 'world_core') return 'magma_rock';
+  if (biome === 'reality_fracture') return 'crystal';
+  return null;
+}
+
 function carveVeinBranching(
   tiles: Tile[][],
   rng: () => number,
   startRow: number,
   startCol: number,
   kind: TileKind,
-  maxSize: number
+  maxSize: number,
+  cx?: number,
+  cy?: number,
+  fillerKind?: TileKind
 ): void {
   let placed = 0;
   const queue: [number, number][] = [[startRow, startCol]];
   const visited = new Set<string>();
+  const limit = getOreSizeLimit(kind);
   
   while (queue.length > 0 && placed < maxSize) {
     const idx = Math.floor(rng() * queue.length);
@@ -81,9 +127,13 @@ function carveVeinBranching(
     visited.add(key);
     
     if (r >= 0 && r < CHUNK_SIZE && c >= 1 && c < CHUNK_SIZE - 1) {
+      if (cx !== undefined && cy !== undefined && isWithinLandmarkSafeZone(cx, cy, r, c)) {
+        continue;
+      }
       const tile = tiles[r][c];
       if (tile.kind !== 'air' && tile.kind !== 'bedrock' && tile.kind !== 'sell_point') {
-        tiles[r][c] = makeTile(kind);
+        const placeKind = (placed >= limit && fillerKind) ? fillerKind : kind;
+        tiles[r][c] = makeTile(placeKind);
         placed++;
       }
     }
@@ -102,6 +152,9 @@ function carveVeinBranching(
     
     for (const [nr, nc] of neighbors) {
       if (nr >= 0 && nr < CHUNK_SIZE && nc >= 1 && nc < CHUNK_SIZE - 1) {
+        if (cx !== undefined && cy !== undefined && isWithinLandmarkSafeZone(cx, cy, nr, nc)) {
+          continue;
+        }
         const dist = Math.hypot(nr - startRow, nc - startCol);
         const spawnProb = Math.max(0.2, 1.0 - dist * 0.25);
         if (rng() < spawnProb) {
@@ -277,19 +330,58 @@ export class WorldManager {
       }
     }
 
-    // Balanced branching ore veins
-    for (const ore of biomeDef.ores) {
-      if (ore.minDepth <= cy && ore.veinsPerChunk !== undefined) {
-        for (let i = 0; i < ore.veinsPerChunk; i++) {
-          if (ore.spawnChance !== undefined && rng() >= ore.spawnChance) continue;
-          
-          const startR = Math.floor(rng() * CHUNK_SIZE);
-          const startC = 1 + Math.floor(rng() * (CHUNK_SIZE - 2));
-          const sizeMin = ore.veinSizeMin ?? 1;
-          const sizeMax = ore.veinSizeMax ?? 1;
-          const targetSize = sizeMin + Math.floor(rng() * (sizeMax - sizeMin + 1));
-          
-          carveVeinBranching(tiles, rng, startR, startC, ore.kind, targetSize);
+    // Balanced branching ore veins or clustered ore generation for late-game biomes
+    const isLateGameBiome = biome === 'secret_chamber' || biome === 'lava_zone' || biome === 'world_core' || biome === 'reality_fracture';
+
+    if (isLateGameBiome) {
+      // Clustered ore generation
+      // Target 25-40% coverage of eligible (non-air, non-bedrock, non-safezone) tiles in the chunk
+      let eligibleCoords: [number, number][] = [];
+      for (let r = 0; r < CHUNK_SIZE; r++) {
+        for (let c = 0; c < CHUNK_SIZE; c++) {
+          if (cx === 0 && c === 0) continue;
+          if (cx === WORLD_WIDTH_CHUNKS - 1 && c === CHUNK_SIZE - 1) continue;
+          if (tiles[r][c].kind === 'air' || tiles[r][c].kind === 'bedrock') continue;
+          if (isWithinLandmarkSafeZone(cx, cy, r, c)) continue;
+          eligibleCoords.push([r, c]);
+        }
+      }
+
+      if (eligibleCoords.length > 0) {
+        const targetCoveragePct = 0.34 + rng() * 0.08; // 34% to 42%
+        const targetTileCount = Math.floor(eligibleCoords.length * targetCoveragePct);
+        const numClusters = 3 + Math.floor(rng() * 4); // 3 to 6 clusters
+
+        let remainingTiles = targetTileCount;
+        for (let i = 0; i < numClusters && remainingTiles > 0; i++) {
+          const isLast = i === numClusters - 1;
+          const clusterSize = isLast ? remainingTiles : Math.max(5, Math.floor((remainingTiles / (numClusters - i)) * (0.7 + rng() * 0.6)));
+          remainingTiles -= clusterSize;
+
+          const startIdx = Math.floor(rng() * eligibleCoords.length);
+          const startCoord = eligibleCoords[startIdx];
+          const oreKind = pickOreKindForBiome(biome, rng);
+          if (oreKind && startCoord) {
+            const fillerKind = getFillerOreForBiome(biome) ?? undefined;
+            carveVeinBranching(tiles, rng, startCoord[0], startCoord[1], oreKind, clusterSize, cx, cy, fillerKind);
+          }
+        }
+      }
+    } else {
+      // Balanced branching ore veins (standard)
+      for (const ore of biomeDef.ores) {
+        if (ore.minDepth <= cy && ore.veinsPerChunk !== undefined) {
+          for (let i = 0; i < ore.veinsPerChunk; i++) {
+            if (ore.spawnChance !== undefined && rng() >= ore.spawnChance) continue;
+            
+            const startR = Math.floor(rng() * CHUNK_SIZE);
+            const startC = 1 + Math.floor(rng() * (CHUNK_SIZE - 2));
+            const sizeMin = ore.veinSizeMin ?? 1;
+            const sizeMax = ore.veinSizeMax ?? 1;
+            const targetSize = sizeMin + Math.floor(rng() * (sizeMax - sizeMin + 1));
+            
+            carveVeinBranching(tiles, rng, startR, startC, ore.kind, targetSize, cx, cy);
+          }
         }
       }
     }

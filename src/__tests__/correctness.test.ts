@@ -390,6 +390,7 @@ describe('Gameplay Correctness Audit', () => {
       const { state } = setup();
       
       state.prestigeCount = 2; // +100% money (1 + 2 * 0.5 = 2.0x value)
+      state.player.y = SURFACE_TILE_ROW; // Place on surface to permit selling
       state.player.money = 0;
       state.quests.forEach(q => q.status = 'locked'); // lock quests to avoid reward payouts
       state.player.inventory.push({ itemId: 'ruby', qty: 1 }); // Ruby base value is 300

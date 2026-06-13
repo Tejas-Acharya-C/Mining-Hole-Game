@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { GameState } from '../types';
 import { ITEM_DEFS, RARITY_COLORS, RARITY_ORDER } from '../data/items';
 import { inventoryCapacity } from '../data/upgrades';
+import { SURFACE_TILE_ROW } from '../data/tiles';
 import styles from './InventoryPanel.module.css';
 
 interface Props {
@@ -21,6 +22,9 @@ export default function InventoryPanel({ state, onClose, onSellAll, onUseEnergyC
 
   const cap      = inventoryCapacity(player.upgrades.backpack);
   const invCount = player.inventory.reduce((s, sl) => s + sl.qty, 0);
+  const atSurface = player.y <= SURFACE_TILE_ROW + 2;
+  const hasUplink = (player.upgrades.market_uplink ?? 0) > 0;
+  const canSell = atSurface || hasUplink;
 
   const totalSellValue = player.inventory.reduce((acc, slot) => {
     const def = ITEM_DEFS[slot.itemId];
@@ -86,29 +90,37 @@ export default function InventoryPanel({ state, onClose, onSellAll, onUseEnergyC
             {sorted.map(slot => {
               const def = ITEM_DEFS[slot.itemId];
               const slotValue = def.sellValue * slot.qty;
+              const isStoryItem = ['artifact', 'facility_key', 'core_stabilizer', 'fracture_shard'].includes(slot.itemId);
               return (
-                <div key={slot.itemId} className={styles.item}>
+                <div key={slot.itemId} className={`${styles.item} ${isStoryItem ? styles.storyItem : ''}`}>
                   <div
                     className={styles.itemGem}
-                    style={{ background: def.color + '22', borderColor: def.color + '66' }}
+                    style={{ background: isStoryItem ? 'rgba(168, 85, 247, 0.15)' : def.color + '22', borderColor: isStoryItem ? '#a855f7' : def.color + '66' }}
                   >
-                    <div className={styles.gemDiamond} style={{ background: def.color }} />
+                    <div className={styles.gemDiamond} style={{ background: isStoryItem ? '#c084fc' : def.color }} />
                   </div>
                   <div className={styles.itemMeta}>
                     <span
                       className={styles.itemName}
-                      style={{ color: RARITY_COLORS[def.rarity] }}
+                      style={{ color: isStoryItem ? '#d8b4fe' : RARITY_COLORS[def.rarity] }}
                     >
                       {def.label}
                     </span>
                     <span className={styles.itemDesc}>{def.description}</span>
-                    <span className={styles.rarityBadge} style={{ color: RARITY_COLORS[def.rarity] }}>
-                      {def.rarity}
-                    </span>
+                    <div className={styles.badgeRow}>
+                      <span className={styles.rarityBadge} style={{ color: isStoryItem ? '#c084fc' : RARITY_COLORS[def.rarity] }}>
+                        {def.rarity}
+                      </span>
+                      {isStoryItem && (
+                        <span className={styles.storyBadge}>🔑 STORY ITEM</span>
+                      )}
+                    </div>
                   </div>
                   <div className={styles.itemQty}>×{slot.qty}</div>
                   <div className={styles.itemVal}>
-                    {def.sellValue > 0 ? (
+                    {isStoryItem ? (
+                      <span className={styles.cannotSell}>Cannot Sell</span>
+                    ) : def.sellValue > 0 ? (
                       <span style={{ color: '#22c55e' }}>${slotValue.toLocaleString()}</span>
                     ) : def.isConsumable && slot.itemId === 'energy_cell' ? (
                       <button
@@ -133,10 +145,10 @@ export default function InventoryPanel({ state, onClose, onSellAll, onUseEnergyC
           </span>
           <button
             className={styles.sellBtn}
-            onClick={() => { onSellAll(); onClose(); }}
-            disabled={totalSellValue === 0}
+            onClick={() => { if (canSell) { onSellAll(); onClose(); } }}
+            disabled={totalSellValue === 0 || !canSell}
           >
-            Sell All
+            {canSell ? 'Sell All' : 'Return to Surface to Sell'}
           </button>
         </div>
       </div>

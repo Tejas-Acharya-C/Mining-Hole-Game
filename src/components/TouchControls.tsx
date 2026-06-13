@@ -23,6 +23,8 @@ export default function TouchControls({
 }: Props) {
   const { player } = state;
   const atSurface = player.y <= SURFACE_TILE_ROW + 2;
+  const hasUplink = (player.upgrades.market_uplink ?? 0) > 0;
+  const canSell = atSurface || hasUplink;
   const hasItems = player.inventory.reduce((s, sl) => s + sl.qty, 0) > 0;
   const hasEnergyCell = player.inventory.some(s => s.itemId === 'energy_cell' && s.qty > 0);
   const hasTP = player.teleportCharges > 0;
@@ -162,7 +164,7 @@ export default function TouchControls({
         </button>
 
         {/* Context-Sensitive Interact Button */}
-        {atSurface && hasItems && onSell && (
+        {canSell && hasItems && onSell && (
           <button
             className={`${styles.contextBtn} ${styles.sellBtn}`}
             onTouchStart={e => { e.preventDefault(); e.stopPropagation(); onSell(); }}

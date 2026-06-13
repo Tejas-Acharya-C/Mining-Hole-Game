@@ -67,6 +67,28 @@ export const ObjectiveTracker: React.FC<Props> = ({ state, isMobile, onOpenHints
         <div className={styles.expandedPanel} data-testid="objective-expanded">
           <p className={styles.description}>{objective.description}</p>
 
+          {(() => {
+            const hasArtifactInBag = state.player.inventory.some(s => s.itemId === 'artifact' && s.qty > 0);
+            const depth = state.player.deepestDepth;
+            const showArtifactGuidance = depth > 100 && !state.artifactActivated && !hasArtifactInBag;
+            if (showArtifactGuidance) {
+              let text = '';
+              if (state.player.x < 16) {
+                text = "Artifact signal detected east.";
+              } else if (state.player.x > 31) {
+                text = "Artifact signal detected west.";
+              } else {
+                text = "Artifact signal growing stronger.";
+              }
+              return (
+                <p className={styles.guidanceText} style={{ color: '#c084fc', fontWeight: 'bold', fontSize: '11.5px', marginTop: '6px' }}>
+                  📡 {text}
+                </p>
+              );
+            }
+            return null;
+          })()}
+
           {objective.progress && (
             <div className={styles.progress}>
               <div className={styles.bar}>

@@ -118,15 +118,62 @@ export class AudioManager {
 
   // ── Sound effects ──────────────────────────────────────────────────────────
 
-  dig(hardness: number): void {
-    const freq = Math.max(80, 200 - hardness * 10);
-    this.noise(0.08, 0.25 + hardness * 0.015, 280 + freq);
-    this.tone({ type: 'square', freq, endFreq: freq * 0.55, duration: 0.06, volume: 0.06 });
+  dig(hardness: number, shovelLv = 0): void {
+    const baseFreq = Math.max(70, 200 - hardness * 12 - shovelLv * 8);
+    const volume = 0.22 + hardness * 0.02 + shovelLv * 0.01;
+    const duration = 0.07 + shovelLv * 0.008;
+    
+    // Noise component representing dirt/stone cracking
+    this.noise(duration + 0.02, volume, 260 + baseFreq + shovelLv * 25);
+    
+    // Tone component: early shovel is simple, high level gets low-frequency resonance
+    if (shovelLv >= 5) {
+      // Heavy machinery power thud
+      this.tone({
+        type: 'sawtooth',
+        freq: baseFreq,
+        endFreq: baseFreq * 0.4,
+        duration: duration,
+        volume: volume * 0.25,
+        attack: 0.005,
+        decay: duration
+      });
+      // Sub-harmonic for weight
+      this.tone({
+        type: 'sine',
+        freq: baseFreq * 0.5,
+        endFreq: baseFreq * 0.2,
+        duration: duration * 1.2,
+        volume: volume * 0.35,
+        attack: 0.01,
+        decay: duration * 1.2
+      });
+    } else {
+      // Standard metal shovel swing sound
+      this.tone({
+        type: 'square',
+        freq: baseFreq,
+        endFreq: baseFreq * 0.5,
+        duration: duration,
+        volume: volume * 0.15,
+        attack: 0.005
+      });
+    }
   }
 
-  break(rarity = 0): void {
-    this.noise(0.14, 0.45 + rarity * 0.05, 550 + rarity * 80);
-    this.tone({ type: 'sawtooth', freq: 200 + rarity * 40, endFreq: 70, duration: 0.14, volume: 0.08 + rarity * 0.02 });
+  break(rarity = 0, shovelLv = 0): void {
+    const duration = 0.15 + rarity * 0.02;
+    const vol = 0.40 + rarity * 0.05 + shovelLv * 0.015;
+    
+    this.noise(duration, vol, 500 + rarity * 85 + shovelLv * 30);
+    
+    if (shovelLv >= 5) {
+      // Heavier block shattering sound
+      this.tone({ type: 'sawtooth', freq: 150 + rarity * 30, endFreq: 40, duration: duration, volume: 0.12 + rarity * 0.02 });
+      this.tone({ type: 'sine', freq: 80 + rarity * 15, endFreq: 20, duration: duration * 1.3, volume: 0.15 });
+    } else {
+      this.tone({ type: 'sawtooth', freq: 200 + rarity * 40, endFreq: 70, duration: duration, volume: 0.08 + rarity * 0.02 });
+    }
   }
 
   pickup(rarity = 0): void {

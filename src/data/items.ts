@@ -54,21 +54,21 @@ export const ITEM_DEFS: Record<ItemId, ItemDef> = {
     sellValue: 180, rarity: 'rare', color: '#a8d8ea', stackSize: 32,
   },
   magma_gem: {
-    id: 'magma_gem', label: 'Magma Gem', description: 'Hot to the touch. Very valuable.',
-    sellValue: 600, rarity: 'epic', color: '#ff4500', stackSize: 16,
+    id: 'magma_gem', label: 'Magma Gem', description: 'Hot to the touch. Very valuable. Stack size: 64.',
+    sellValue: 600, rarity: 'epic', color: '#ff4500', stackSize: 64,
   },
   void_crystal: {
-    id: 'void_crystal', label: 'Void Shard', description: 'A fragment of nothingness.',
-    sellValue: 2500, rarity: 'legendary', color: '#6600cc', stackSize: 8,
+    id: 'void_crystal', label: 'Void Shard', description: 'A fragment of nothingness. Stack size: 32.',
+    sellValue: 2500, rarity: 'legendary', color: '#6600cc', stackSize: 32,
   },
   ancient_coin: {
-    id: 'ancient_coin', label: 'Ancient Coin', description: 'Currency from a lost civilization.',
-    sellValue: 1200, rarity: 'legendary', color: '#d4af37', stackSize: 8,
+    id: 'ancient_coin', label: 'Ancient Coin', description: 'Currency from a lost civilization. Stack size: 32.',
+    sellValue: 1200, rarity: 'legendary', color: '#d4af37', stackSize: 32,
   },
   energy_cell: {
-    id: 'energy_cell', label: 'Energy Cell', description: 'Restores 40 energy when used.',
+    id: 'energy_cell', label: 'Energy Cell', description: 'Restores 80 energy when used.',
     sellValue: 0, rarity: 'uncommon', color: '#44ffaa', stackSize: 16,
-    isConsumable: true, consumeEffect: { type: 'energy', amount: 40 },
+    isConsumable: true, consumeEffect: { type: 'energy', amount: 80 },
   },
   scrap_metal: {
     id: 'scrap_metal', label: 'Scrap Metal', description: 'Bent pieces of old machinery.',

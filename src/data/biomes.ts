@@ -104,7 +104,7 @@ export const BIOME_DEFS: Record<BiomeId, BiomeDef> = {
   lava_zone: {
     id: 'lava_zone', label: 'Lava Fields',
     minDepth: 70, maxDepth: 110,
-    baseTile: 'magma_rock',
+    baseTile: 'hardstone',
     ambientColor: '#200808', fogColor: '#150404',
     lightLevel: 0.3,
     ores: [
@@ -134,7 +134,7 @@ export const BIOME_DEFS: Record<BiomeId, BiomeDef> = {
   secret_chamber: {
     id: 'secret_chamber', label: 'The Lost Chamber',
     minDepth: 148, maxDepth: 160,
-    baseTile: 'ancient_brick',
+    baseTile: 'hardstone',
     ambientColor: '#0a0520', fogColor: '#050210',
     lightLevel: 0.15,
     ores: [
@@ -160,7 +160,7 @@ export const BIOME_DEFS: Record<BiomeId, BiomeDef> = {
   world_core: {
     id: 'world_core', label: 'World Core',
     minDepth: 12, maxDepth: 13,
-    baseTile: 'magma_rock',
+    baseTile: 'hardstone',
     ambientColor: '#2d0a0a', fogColor: '#1a0505',
     lightLevel: 0.35,
     ores: [
@@ -174,7 +174,7 @@ export const BIOME_DEFS: Record<BiomeId, BiomeDef> = {
   reality_fracture: {
     id: 'reality_fracture', label: 'Reality Fracture',
     minDepth: 14, maxDepth: 20,
-    baseTile: 'void_stone',
+    baseTile: 'hardstone',
     ambientColor: '#1a0a2e', fogColor: '#0a0314',
     lightLevel: 0.15,
     ores: [

@@ -1,14 +1,14 @@
-import { useEffect, useRef } from 'react';
-import type { GameState } from '../types';
+import { useEffect, useRef, useState } from 'react';
+import type { GameState, ItemId } from '../types';
 import { ACHIEVEMENT_DEFS } from '../data/achievements';
 import styles from './WinScreen.module.css';
 
 interface Props {
   state: GameState;
-  onPlayAgain: () => void;
-  onChallenge: () => void;
   onPrestige: () => void;
+  onReturnToMenu: () => void;
 }
+
 
 // Animated canvas background for win screen
 function ArtifactCanvas() {
@@ -56,8 +56,11 @@ function ArtifactCanvas() {
   return <canvas ref={ref} width={400} height={120} className={styles.artifactCanvas} />;
 }
 
-export default function WinScreen({ state, onPlayAgain, onChallenge, onPrestige }: Props) {
+export default function WinScreen({ state, onPrestige, onReturnToMenu }: Props) {
   const { player, achievements, statistics } = state;
+  const [showEndings, setShowEndings] = useState(false);
+  const [showPrestigeConfirm, setShowPrestigeConfirm] = useState(false);
+
   const mins = Math.floor(state.playTime / 60);
   const secs = Math.floor(state.playTime % 60);
   const unlocked = achievements.filter(a => a.unlocked).length;
@@ -84,6 +87,8 @@ export default function WinScreen({ state, onPlayAgain, onChallenge, onPrestige 
     '"Why did you dig so deep?"',
   ];
 
+  let earnedRewardName = "None";
+
   if (state.unlockedEnding === 'standard') {
     title = "Ending: Geothermal Containment";
     narrativeLines = [
@@ -92,6 +97,7 @@ export default function WinScreen({ state, onPlayAgain, onChallenge, onPrestige 
       'The surface remains safe, but the secrets of the void remain dormant.',
       'A job well done, but the deep questions remain unanswered...',
     ];
+    earnedRewardName = "+5% Ore Sale Value (Restoration)";
   } else if (state.unlockedEnding === 'completionist') {
     title = "Perfect Ending: Cosmic Equilibrium";
     narrativeLines = [
@@ -100,6 +106,7 @@ export default function WinScreen({ state, onPlayAgain, onChallenge, onPrestige 
       'You have mastered the deep, solved the mystery, and saved the world.',
       'You are a legendary miner of cosmic renown.',
     ];
+    earnedRewardName = "+1 Cargo Slot (Voidbound)";
   } else if (state.unlockedEnding === 'secret') {
     title = "Secret Ending: Core Ascendant";
     narrativeLines = [
@@ -108,7 +115,29 @@ export default function WinScreen({ state, onPlayAgain, onChallenge, onPrestige 
       'You transcend your humanity, becoming one with the world core.',
       'You are no longer a miner. You are the deep core itself.',
     ];
+    earnedRewardName = "+10 Max Energy (Ascension)";
   }
+
+  const oreIds: ItemId[] = [
+    'coal', 'iron', 'silver', 'gold', 'ruby', 'sapphire', 'emerald',
+    'crystal', 'fossil', 'relic', 'obsidian_shard', 'ice_core', 'magma_gem',
+    'void_crystal', 'ancient_coin'
+  ];
+  const totalOresSold = oreIds.reduce((sum, id) => sum + (statistics.itemsCollected[id] ?? 0), 0);
+
+  const statsCards = [
+    { label: 'Depth Reached',   val: `${player.deepestDepth}m` },
+    { label: 'Blocks Dug',      val: statistics.blocksDug.toLocaleString() },
+    { label: 'Ore Sold',         val: totalOresSold.toLocaleString() },
+    { label: 'Money Earned',    val: `$${statistics.moneyEarned.toLocaleString()}` },
+    { label: 'Quests Completed', val: statistics.questsCompleted.toString() },
+    { label: 'Score',           val: `${points} pts` },
+  ];
+
+  const completed = state.prestigeData?.completedEndings ?? [];
+  const isEndingCompleted = (id: 'standard' | 'completionist' | 'secret') => {
+    return completed.includes(id) || state.unlockedEnding === id;
+  };
 
   return (
     <div className={styles.root}>
@@ -116,6 +145,8 @@ export default function WinScreen({ state, onPlayAgain, onChallenge, onPrestige 
         <div className={styles.glow} aria-hidden />
 
         <ArtifactCanvas />
+
+        <div className={styles.expeditionBadge}>Expedition Complete</div>
 
         <div className={styles.gradeRow}>
           <span className={styles.grade} style={{ color: gradeColor }}>{grade}</span>
@@ -136,21 +167,65 @@ export default function WinScreen({ state, onPlayAgain, onChallenge, onPrestige 
           ))}
         </div>
 
+        <div style={{
+          backgroundColor: 'rgba(251, 191, 36, 0.12)',
+          border: '1px solid rgba(251, 191, 36, 0.3)',
+          borderRadius: '8px',
+          padding: '10px',
+          margin: '15px 0',
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#fbbf24', fontWeight: 'bold' }}>
+            Permanent Reward Earned
+          </div>
+          <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#fff', marginTop: '2px' }}>
+            {earnedRewardName}
+          </div>
+        </div>
+
         <div className={styles.statsGrid}>
-          {[
-            { label: 'Depth Reached',   val: `${player.deepestDepth}m` },
-            { label: 'Blocks Dug',      val: statistics.blocksDug.toLocaleString() },
-            { label: 'Money Earned',    val: `$${statistics.moneyEarned.toLocaleString()}` },
-            { label: 'Events Found',    val: statistics.eventsTriggered.toLocaleString() },
-            { label: 'Lore Collected',  val: `${statistics.loreFragmentsFound}/12` },
-            { label: 'Score',           val: `${points} pts` },
-          ].map(s => (
+          {statsCards.map(s => (
             <div key={s.label} className={styles.statCard}>
               <span className={styles.statVal}>{s.val}</span>
               <span className={styles.statLabel}>{s.label}</span>
             </div>
           ))}
         </div>
+
+        {showEndings && (
+          <div style={{
+            marginTop: '15px',
+            padding: '12px',
+            backgroundColor: 'rgba(255, 255, 255, 0.04)',
+            borderRadius: '8px',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            textAlign: 'left',
+          }}>
+            <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#fbbf24', textAlign: 'center' }}>Endings Discovery Checklist</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {[
+                { id: 'standard', title: 'Restoration: Geothermal Containment', desc: 'Route core energies (+5% Ore Value, max +25%)' },
+                { id: 'secret', title: 'Ascension: Core Ascendant', desc: 'Absorb the rift\'s power directly (+10 Max Energy, max +50)' },
+                { id: 'completionist', title: 'Voidbound: Cosmic Equilibrium', desc: 'Clean, perpetual rift resonance (+1 Cargo Slot, max +5)' },
+              ].map(endingDef => {
+                const done = isEndingCompleted(endingDef.id as any);
+                return (
+                  <div key={endingDef.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: done ? 1 : 0.5 }}>
+                    <span style={{ fontSize: '16px', color: done ? '#22c55e' : '#6b7280' }}>
+                      {done ? '✅' : '🔒'}
+                    </span>
+                    <div>
+                      <div style={{ fontSize: '12px', fontWeight: 'bold' }}>
+                        {endingDef.title}
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#94a3b8' }}>{endingDef.desc}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className={styles.achSection}>
           <h3 className={styles.achTitle}>Achievements — {unlocked}/{total}</h3>
@@ -175,33 +250,136 @@ export default function WinScreen({ state, onPlayAgain, onChallenge, onPrestige 
           </div>
         )}
 
-        <div className={styles.buttons} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', width: '100%' }}>
-            <button className={styles.btnAgain} onClick={onPlayAgain}>↺ New Game</button>
-            <button className={styles.btnChallenge} onClick={onChallenge}>💀 Hard Mode</button>
-          </div>
+        <div className={styles.buttons} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px', width: '100%', alignItems: 'center' }}>
           <button
-            onClick={onPrestige}
+            onClick={() => setShowPrestigeConfirm(true)}
             style={{
               backgroundColor: '#fbbf24',
               color: '#0f172a',
               border: 'none',
               borderRadius: '8px',
               padding: '12px 20px',
-              fontSize: '14px',
+              fontSize: '15px',
               fontWeight: 'bold',
               cursor: 'pointer',
               boxShadow: '0 4px 12px rgba(251, 191, 36, 0.35)',
               transition: 'all 0.2s ease',
               width: '100%',
               maxWidth: '340px',
-              alignSelf: 'center',
             }}
           >
-            👑 Prestige & Restart (+50% Income Multiplier)
+            👑 Start New Expedition
           </button>
+
+          <div style={{
+            fontSize: '11px',
+            color: '#94a3b8',
+            textAlign: 'center',
+            maxWidth: '340px',
+            lineHeight: '1.45',
+            marginTop: '-4px',
+            marginBottom: '4px'
+          }}>
+            <strong>Start New Expedition:</strong> Begin a fresh run while keeping permanent bonuses earned from completed endings.
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', width: '100%', maxWidth: '340px' }}>
+            <button
+              onClick={() => setShowEndings(prev => !prev)}
+              style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                color: '#fff',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                borderRadius: '8px',
+                padding: '10px 15px',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                flex: 1,
+              }}
+            >
+              🎬 View Other Endings
+            </button>
+            <button
+              onClick={onReturnToMenu}
+              style={{
+                backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                color: '#ef4444',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                borderRadius: '8px',
+                padding: '10px 15px',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                flex: 1,
+              }}
+            >
+              🚪 Return To Menu
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Retro-futuristic Prestige Retrofit Confirmation Modal */}
+      {showPrestigeConfirm && (
+        <div className={styles.confirmOverlay} onClick={() => setShowPrestigeConfirm(false)}>
+          <div className={styles.confirmPanel} onClick={e => e.stopPropagation()}>
+            <div className={styles.confirmIcon}>🌌</div>
+            <h3 className={styles.confirmTitle}>EXPEDITION RETROFIT PROTOCOL</h3>
+            <p className={styles.confirmSubtitle}>Preparing Sector Descent #{ (state.prestigeCount ?? 0) + 1 }</p>
+            
+            <div className={styles.confirmStats}>
+              <div className={styles.confirmStatSection}>
+                <div className={styles.confirmSectionTitle}>Completed Endings</div>
+                <div className={styles.endingsList}>
+                  {['standard', 'completionist', 'secret'].map(e => {
+                    const done = state.prestigeData?.completedEndings.includes(e) || state.unlockedEnding === e;
+                    const names: Record<string, string> = { standard: 'Containment', completionist: 'Equilibrium', secret: 'Ascendant' };
+                    return (
+                      <span key={e} className={`${styles.endingBadge} ${done ? styles.endingBadgeDone : ''}`}>
+                        {done ? '✦' : '✧'} {names[e] || e}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className={styles.confirmStatSection}>
+                <div className={styles.confirmSectionTitle}>Active Retrofit Upgrades</div>
+                <div className={styles.bonusStatsList}>
+                  <div className={styles.bonusStatItem}>
+                    <span>💰 Ore Sale Multiplier</span>
+                    <span className={styles.bonusStatVal}>
+                      +{Math.round((state.prestigeData?.bonuses?.oreValueBonus ?? 0) * 100)}%
+                    </span>
+                  </div>
+                  <div className={styles.bonusStatItem}>
+                    <span>🔋 Max Energy Reserves</span>
+                    <span className={styles.bonusStatVal}>
+                      +{state.prestigeData?.bonuses?.maxEnergyBonus ?? 0} EN
+                    </span>
+                  </div>
+                  <div className={styles.bonusStatItem}>
+                    <span>🎒 Backpack Cargo Space</span>
+                    <span className={styles.bonusStatVal}>
+                      +{state.prestigeData?.bonuses?.inventoryBonus ?? 0} slots
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.confirmButtons}>
+              <button className={styles.confirmCancelBtn} onClick={() => setShowPrestigeConfirm(false)}>
+                CANCEL
+              </button>
+              <button className={styles.confirmOkBtn} onClick={onPrestige}>
+                LAUNCH EXPEDITION
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

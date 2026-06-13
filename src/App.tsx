@@ -5,8 +5,10 @@ import {
   createInitialState, tryDig, tryMove, tickEnergy, tickScreenShake,
   tickFloatTexts, revealAround, sellInventory, buyUpgrade,
   unlockAchievement, useTeleport, playerDepth,
-  tickEvents, consumeEnergyCell, tickBiomeTransition,
-  tickHazards, updateBiome, spawnFloat,
+  tickEvents, consumeEnergyCell, tickBiomeTransition, tickDiscoveryAlert,
+  tickQuestAlert, tickDepthAlert,
+  tickHazards, updateBiome, spawnFloat, triggerEnding,
+  startNewExpedition,
 } from './systems/GameManager';
 import { syncProgressionJournal, updateProgressionStage } from './systems/ProgressionSystem';
 import { SaveManager } from './systems/SaveManager';
@@ -22,6 +24,8 @@ import { ACHIEVEMENT_DEFS } from './data/achievements';
 import { BIOME_DEFS } from './data/biomes';
 
 import TitleScreen from './components/TitleScreen';
+import TutorialOverlay from './components/TutorialOverlay';
+import { QUEST_DEFS } from './data/quests';
 import HUD from './components/HUD';
 import ShopPanel from './components/ShopPanel';
 import InventoryPanel from './components/InventoryPanel';
@@ -38,6 +42,7 @@ import { ObjectiveTracker } from './components/ObjectiveTracker';
 import { HintPanel } from './components/HintPanel';
 import { JournalPanel } from './components/JournalPanel';
 import { MilestoneModal } from './components/MilestoneModal';
+import GameAlerts from './components/GameAlerts';
 
 // ── Singleton managers live outside React to avoid re-creation ────────────────
 let wmInstance: WorldManager | null = null;
@@ -89,17 +94,61 @@ export default function App() {
     fpsRef.current = dt > 0 ? Math.round(1 / dt) : 60;
 
     if (state.screen === 'playing') {
-      // Reduced motion bypasses hit stop freezes
-      if (state.hitStopTimer && state.hitStopTimer > 0 && !state.settings.reducedMotion) {
-        state.hitStopTimer -= dt;
-        dt = 0;
-      }
-      state.tick++;
-      state.playTime += dt;
-      state.statistics.playTimeSeconds += dt;
+      const isPausedForTutorial = !state.tutorialComplete || state.activePrestigeHintPopup;
 
-      const wm  = wmInstance!;
-      const inp = getInput();
+      if (isPausedForTutorial) {
+        if (state.activePrestigeHintPopup) {
+          const inp = getInput();
+          if (inp.keys.has('Enter') || inp.keys.has('Space') || inp.keys.has('Escape')) {
+            inp.keys.delete('Enter');
+            inp.keys.delete('Space');
+            inp.keys.delete('Escape');
+            state.activePrestigeHintPopup = false;
+            SaveManager.save(state);
+            forceUpdate(n => n + 1);
+          }
+        }
+        pmInstance.tick(dt);
+      } else {
+        // Reduced motion bypasses hit stop freezes
+        if (state.hitStopTimer && state.hitStopTimer > 0 && !state.settings.reducedMotion) {
+          state.hitStopTimer -= dt;
+          dt = 0;
+        }
+        state.tick++;
+        state.playTime += dt;
+        state.statistics.playTimeSeconds += dt;
+
+        // Timed Quest fail checking
+        state.quests.forEach(q => {
+          const def = QUEST_DEFS[q.id];
+          if (q.status === 'active' && def.timeLimit !== undefined && state.playTime > def.timeLimit) {
+            q.status = 'failed';
+            spawnFloat(state, state.player.x * TILE_SIZE + TILE_SIZE / 2, state.player.y * TILE_SIZE - TILE_SIZE, `⏳ QUEST FAILED: ${def.title}`, '#ef4444', 1.25);
+            if (state.settings.soundEnabled) audioManager.lowEnergy();
+            forceUpdate(n => n + 1);
+          }
+        });
+
+        // Prestige hint trigger check
+        const hasPrestigeCount = (state.prestigeData?.expeditionCount ?? 0) > 0;
+        const reachedFracture = state.currentBiome === 'reality_fracture' || state.atEndgameStabilizer;
+        if (!state.prestigeHintSeen && !hasPrestigeCount && reachedFracture) {
+          state.prestigeHintSeen = true;
+          state.activePrestigeHintPopup = true;
+          SaveManager.save(state);
+          forceUpdate(n => n + 1);
+        }
+
+        const wm  = wmInstance!;
+        const inp = getInput();
+        
+        // Decrement input lock timer
+        if (state.inputLockTimer && state.inputLockTimer > 0) {
+          state.inputLockTimer = Math.max(0, state.inputLockTimer - dt);
+        }
+        const inputLocked = !!(state.inputLockTimer && state.inputLockTimer > 0);
+
       moveCoolRef.current -= dt * 1000;
       digCoolRef.current  -= dt * 1000;
 
@@ -107,7 +156,7 @@ export default function App() {
       const dcd = digCooldown(state.player.upgrades.shovel);
 
       // ── Movement (keyboard + touch joystick) ──
-      if (moveCoolRef.current <= 0) {
+      if (moveCoolRef.current <= 0 && !inputLocked) {
         let moved = false;
         const jx = inp.touchJoyX;
         const jy = inp.touchJoyY;
@@ -142,7 +191,7 @@ export default function App() {
       else if (isAnyKeyDown('ArrowUp',    'KeyW')) { digRow = state.player.y - 1; digCol = state.player.x; }
 
       // ── Dig (all input sources respect cooldown) ──
-      if (digCoolRef.current <= 0) {
+      if (digCoolRef.current <= 0 && !inputLocked) {
         // Keyboard
         if (isAnyKeyDown('KeyZ', 'Space')) {
           const res = tryDig(state, wm, pmInstance, digRow, digCol);
@@ -185,7 +234,9 @@ export default function App() {
       }
       if (inp.keys.has('KeyE')) {
         inp.keys.delete('KeyE');
-        if (state.player.y <= SURFACE_TILE_ROW + 1) sellInventory(state);
+        const atSurface = state.player.y <= SURFACE_TILE_ROW + 2;
+        const hasUplink = (state.player.upgrades.market_uplink ?? 0) > 0;
+        if (atSurface || hasUplink) sellInventory(state);
       }
       if (inp.keys.has('KeyI')) {
         inp.keys.delete('KeyI');
@@ -209,6 +260,27 @@ export default function App() {
       tickScreenShake(state, dt);
       tickFloatTexts(state, dt);
       tickBiomeTransition(state, dt);
+      tickDiscoveryAlert(state, dt);
+      tickQuestAlert(state, dt);
+      tickDepthAlert(state, dt);
+
+      // Check if quest alert or depth alert was just triggered and spawn celebration particles
+      if (state.questAlert && Math.abs(state.questAlert.life - state.questAlert.maxLife) < 0.005) {
+        pmInstance.emitCelebration(state.player.x * TILE_SIZE + TILE_SIZE / 2, state.player.y * TILE_SIZE + TILE_SIZE / 2, state.settings.particleQuality);
+        state.questAlert.life -= 0.006;
+      }
+      if (state.depthAlert && Math.abs(state.depthAlert.life - state.depthAlert.maxLife) < 0.005) {
+        pmInstance.emitCelebration(state.player.x * TILE_SIZE + TILE_SIZE / 2, state.player.y * TILE_SIZE + TILE_SIZE / 2, state.settings.particleQuality);
+        state.depthAlert.life -= 0.006;
+      }
+      if (state.biomeTransition && Math.abs(state.biomeTransition.life - state.biomeTransition.maxLife) < 0.005) {
+        pmInstance.emitCelebration(state.player.x * TILE_SIZE + TILE_SIZE / 2, state.player.y * TILE_SIZE + TILE_SIZE / 2, state.settings.particleQuality);
+        state.biomeTransition.life -= 0.006;
+      }
+      if (state.activeMilestonePopup && state.lastMilestonePopup && state.lastMilestonePopup.timestamp > 0 && Math.abs(Date.now() - state.lastMilestonePopup.timestamp) < 150) {
+        pmInstance.emitCelebration(state.player.x * TILE_SIZE + TILE_SIZE / 2, state.player.y * TILE_SIZE + TILE_SIZE / 2, state.settings.particleQuality);
+        state.lastMilestonePopup.timestamp = 0;
+      }
 
       // Hardcore collapse check
       if (state.activeModifiers?.includes('hardcore') && state.player.energy <= 0) {
@@ -301,6 +373,7 @@ export default function App() {
       const pts = state.statistics.playTimeSeconds;
       if (pts >= 7200) unlockAchievement(state, 'marathon_miner');
       if (pts >= 14400) unlockAchievement(state, 'insomniac');
+      }
     }
 
     // Win state — save once and switch screen
@@ -484,23 +557,33 @@ export default function App() {
     forceUpdate(n => n + 1);
   }, []);
 
-  const handlePlayAgain = useCallback((mode: GameState['mode'] = 'normal') => {
+  const handleTutorialComplete = useCallback(() => {
+    const state = stateRef.current;
+    if (!state) return;
+    state.tutorialComplete = true;
+    SaveManager.save(state);
+    forceUpdate(n => n + 1);
+  }, []);
+
+
+  const handleReturnToMenu = useCallback(() => {
     audioManager.menuClick();
-    SaveManager.deleteSave();
-    startNewGame(mode);
-  }, [startNewGame]);
+    if (stateRef.current) {
+      SaveManager.save(stateRef.current);
+    }
+    stateRef.current = null;
+    setScreen('title');
+    forceUpdate(n => n + 1);
+  }, []);
 
   const handlePrestige = useCallback(() => {
+    if (!stateRef.current) return;
     audioManager.menuClick();
-    const currentPrestige = stateRef.current?.prestigeCount ?? 0;
-    const nextPrestige = currentPrestige + 1;
-    const state = createInitialState(undefined, 'normal');
-    state.prestigeCount = nextPrestige;
-    state.challengeModeUnlocked = true;
-    state.screen = 'playing';
-    SaveManager.deleteSave();
-    initGame(state);
-    SaveManager.save(state);
+    const nextState = startNewExpedition(stateRef.current);
+    nextState.challengeModeUnlocked = true;
+    nextState.screen = 'playing';
+    initGame(nextState);
+    SaveManager.save(nextState);
     setScreen('playing');
     forceUpdate(n => n + 1);
   }, [initGame]);
@@ -529,6 +612,7 @@ export default function App() {
           onChallenge={(mode, seed, modifiers) => startNewGame(mode, seed, modifiers)}
           challengeModeUnlocked={stateRef.current ? stateRef.current.challengeModeUnlocked : SaveManager.hasSave() || (SaveManager.load()?.challengeModeUnlocked ?? false)}
           prestigeCount={stateRef.current?.prestigeCount ?? SaveManager.load()?.prestigeCount ?? 0}
+          prestigeData={stateRef.current?.prestigeData ?? SaveManager.load()?.prestigeData}
         />
       )}
 
@@ -555,6 +639,7 @@ export default function App() {
             onTeleport={state.player.teleportCharges > 0 ? handleUseTeleport : undefined}
             onUseEnergyCell={handleUseEnergyCell}
           />
+          <GameAlerts state={state} />
           <TutorialHint state={state} />
           {state.showHintPanel && (
             <HintPanel
@@ -587,9 +672,7 @@ export default function App() {
             <EndgameModal
               state={state}
               onSelectEnding={(ending) => {
-                state.unlockedEnding = ending;
-                state.atEndgameStabilizer = false;
-                state.screen = 'win';
+                triggerEnding(state, ending);
                 setScreen('win');
                 SaveManager.save(state);
               }}
@@ -608,6 +691,72 @@ export default function App() {
               onSell={handleSellFromTouch}
               onUseEnergyCell={handleUseEnergyCell}
             />
+          )}
+
+          {!state.tutorialComplete && (
+            <TutorialOverlay onComplete={handleTutorialComplete} />
+          )}
+
+          {state.activePrestigeHintPopup && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background: 'rgba(8, 5, 18, 0.82)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 100,
+                backdropFilter: 'blur(10px)',
+              }}
+              onClick={() => {
+                state.activePrestigeHintPopup = false;
+                SaveManager.save(state);
+                forceUpdate(n => n + 1);
+              }}
+            >
+              <div
+                style={{
+                  background: 'linear-gradient(135deg, rgba(20, 16, 36, 0.95), rgba(10, 8, 20, 0.98))',
+                  border: '1px solid rgba(168, 85, 247, 0.35)',
+                  borderRadius: '16px',
+                  padding: '28px 24px',
+                  width: 'min(380px, 90vw)',
+                  textAlign: 'center',
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.6)',
+                }}
+                onClick={e => e.stopPropagation()}
+              >
+                <div style={{ fontSize: '44px', marginBottom: '14px' }}>✨</div>
+                <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#fff', marginBottom: '10px', letterSpacing: '0.5px' }}>
+                  EXPEDITION REWARDS
+                </h3>
+                <p style={{ fontSize: '13.5px', color: '#cbd5e1', lineHeight: '1.5', marginBottom: '24px' }}>
+                  Completing an expedition unlocks permanent bonuses for future runs.
+                </p>
+                <button
+                  style={{
+                    background: 'linear-gradient(135deg, #a855f7, #7c3aed)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '10px 20px',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    width: '100%',
+                    minHeight: '44px',
+                  }}
+                  onClick={() => {
+                    state.activePrestigeHintPopup = false;
+                    SaveManager.save(state);
+                    forceUpdate(n => n + 1);
+                  }}
+                >
+                  Understood
+                </button>
+              </div>
+            </div>
           )}
         </>
       )}
@@ -663,9 +812,8 @@ export default function App() {
       {screen === 'win' && state && (
         <WinScreen
           state={state}
-          onPlayAgain={() => handlePlayAgain('normal')}
-          onChallenge={() => handlePlayAgain('hard')}
           onPrestige={handlePrestige}
+          onReturnToMenu={handleReturnToMenu}
         />
       )}
 

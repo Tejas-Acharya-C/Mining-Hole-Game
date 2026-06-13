@@ -4,13 +4,14 @@ import styles from './QuestsPanel.module.css';
 
 interface Props { state: GameState; onClose: () => void; }
 
-const STATUS_COLOR = { active: '#60a5fa', completed: '#22c55e', claimed: '#fbbf24', locked: '#334155' };
-const STATUS_LABEL = { active: 'Active', completed: 'Complete', claimed: 'Complete', locked: '🔒 Locked' };
+const STATUS_COLOR = { active: '#60a5fa', completed: '#22c55e', claimed: '#fbbf24', locked: '#334155', failed: '#ef4444' };
+const STATUS_LABEL = { active: 'Active', completed: 'Complete', claimed: 'Complete', locked: '🔒 Locked', failed: '❌ Failed' };
 
 export default function QuestsPanel({ state, onClose }: Props) {
   const active    = state.quests.filter(q => q.status === 'active');
   const completed = state.quests.filter(q => q.status === 'completed' || q.status === 'claimed');
   const locked    = state.quests.filter(q => q.status === 'locked');
+  const failed    = state.quests.filter(q => q.status === 'failed');
 
   const renderQuest = (q: typeof state.quests[0]) => {
     const def = QUEST_DEFS[q.id];
@@ -32,10 +33,18 @@ export default function QuestsPanel({ state, onClose }: Props) {
     if (obj.type === 'collect_all_gems') progressMax = 3;
     const pct = Math.min(1, progressCur / progressMax);
 
+    let timeLimitText = '';
+    if (q.id === 'q_speed_50' && q.status === 'active') {
+      const remaining = Math.max(0, 300 - state.playTime);
+      const remMins = Math.floor(remaining / 60);
+      const remSecs = Math.floor(remaining % 60).toString().padStart(2, '0');
+      timeLimitText = ` (⏳ Time: ${remMins}:${remSecs})`;
+    }
+
     return (
-      <div key={q.id} className={`${styles.card} ${q.status === 'locked' ? styles.locked : ''}`}>
+      <div key={q.id} className={`${styles.card} ${q.status === 'locked' ? styles.locked : ''} ${q.status === 'failed' ? styles.failedCard : ''}`}>
         <div className={styles.cardTop}>
-          <span className={styles.questTitle}>{def.title}</span>
+          <span className={styles.questTitle}>{def.title}{timeLimitText}</span>
           <span className={styles.statusBadge} style={{ color, borderColor: color + '44' }}>
             {STATUS_LABEL[q.status]}
           </span>
@@ -87,6 +96,12 @@ export default function QuestsPanel({ state, onClose }: Props) {
             <section>
               <h3 className={styles.sectionTitle}>Completed ({completed.length})</h3>
               {completed.map(renderQuest)}
+            </section>
+          )}
+          {failed.length > 0 && (
+            <section>
+              <h3 className={styles.sectionTitle}>Failed ({failed.length})</h3>
+              {failed.map(renderQuest)}
             </section>
           )}
           {locked.length > 0 && (

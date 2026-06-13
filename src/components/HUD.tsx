@@ -45,6 +45,31 @@ export default function HUD({ state, useMobileUI, onPause, onShop, onInventory, 
   const activeQuest = state.quests.find(q => q.status === 'active');
   const questDef = activeQuest ? QUEST_DEFS[activeQuest.id] : null;
 
+  // Timed Quests
+  const activeTimedQuests = state.quests.filter(q => {
+    const def = QUEST_DEFS[q.id];
+    return q.status === 'active' && def.timeLimit !== undefined;
+  });
+
+  // Artifact Guidance (depth > 100m, artifact not found)
+  const hasArtifactInBag = player.inventory.some(s => s.itemId === 'artifact' && s.qty > 0);
+  const showArtifactGuidance = depth > 100 && !state.artifactActivated && !hasArtifactInBag;
+  let artifactGuidanceText = '';
+  if (showArtifactGuidance) {
+    if (player.x < 16) {
+      artifactGuidanceText = "Artifact signal detected east.";
+    } else if (player.x > 31) {
+      artifactGuidanceText = "Artifact signal detected west.";
+    } else {
+      artifactGuidanceText = "Artifact signal growing stronger.";
+    }
+  }
+
+  // Terminal Guidance (possesses artifact or facility key, step incomplete)
+  const hasArtifact = player.inventory.some(s => s.itemId === 'artifact' && s.qty > 0);
+  const hasKey = player.inventory.some(s => s.itemId === 'facility_key' && s.qty > 0);
+  const showTerminalGuidance = (hasArtifact && !state.artifactActivated) || (hasKey && !state.facilityUnlocked);
+
   if (isMobile) {
     // ── MOBILE COMPACT HUD ──
     return (
@@ -75,6 +100,35 @@ export default function HUD({ state, useMobileUI, onPause, onShop, onInventory, 
             <button className={styles.pauseBtn} onClick={onPause}>⏸</button>
           </div>
         </div>
+
+        {/* Timed Quest Countdown on Mobile */}
+        {activeTimedQuests.map(q => {
+          const def = QUEST_DEFS[q.id];
+          const timeLeft = Math.max(0, def.timeLimit! - state.playTime);
+          const minsVal = Math.floor(timeLeft / 60);
+          const secsVal = Math.floor(timeLeft % 60);
+          const timeStr = `${minsVal}:${String(secsVal).padStart(2, '0')}`;
+          const isWarning = timeLeft < 30;
+          const target = ('count' in def.objective) ? def.objective.count : ('totalValue' in def.objective) ? def.objective.totalValue : ('depth' in def.objective) ? def.objective.depth : 1;
+
+          return (
+            <div key={q.id} className={`${styles.timedQuestMobileRow} ${isWarning ? styles.warningText : ''}`}>
+              ⏳ {def.title}: {timeStr} ({q.progress}/{target}m)
+            </div>
+          );
+        })}
+
+        {/* Directional Scanner/Terminal Guidance on Mobile */}
+        {showArtifactGuidance && (
+          <div className={styles.artifactGuidanceMobileRow}>
+            📡 {artifactGuidanceText}
+          </div>
+        )}
+        {showTerminalGuidance && (
+          <div className={styles.terminalGuidanceMobileRow}>
+            🛰️ Return to the Ancient Terminal on the surface.
+          </div>
+        )}
 
         {/* Collapsible Mobile HUD Panel */}
         {isExpanded && (
@@ -117,6 +171,10 @@ export default function HUD({ state, useMobileUI, onPause, onShop, onInventory, 
               {atSurface ? (
                 <div className={styles.detailsObjectiveText} style={{ color: '#86efac' }}>
                   📢 DEPOT BEACON ACTIVE: use the shop/sell controls when at the surface.
+                </div>
+              ) : (player.upgrades.market_uplink ?? 0) > 0 ? (
+                <div className={styles.detailsObjectiveText} style={{ color: '#60a5fa' }}>
+                  📶 PORTABLE MARKET UPLINK ACTIVE: Sell cargo from bag anywhere.
                 </div>
               ) : (questDef && activeQuest) ? (
                 <div className={styles.detailsObjectiveText}>
@@ -193,6 +251,26 @@ export default function HUD({ state, useMobileUI, onPause, onShop, onInventory, 
               <span className={styles.chipVal}>{eventCount} RADAR</span>
             </div>
           )}
+
+          {/* Timed Quest Countdown on Desktop HUD */}
+          {activeTimedQuests.map(q => {
+            const def = QUEST_DEFS[q.id];
+            const timeLeft = Math.max(0, def.timeLimit! - state.playTime);
+            const minsVal = Math.floor(timeLeft / 60);
+            const secsVal = Math.floor(timeLeft % 60);
+            const timeStr = `${minsVal}:${String(secsVal).padStart(2, '0')}`;
+            const isWarning = timeLeft < 30;
+            const target = ('count' in def.objective) ? def.objective.count : ('totalValue' in def.objective) ? def.objective.totalValue : ('depth' in def.objective) ? def.objective.depth : 1;
+
+            return (
+              <div key={q.id} className={`${styles.statChip} ${styles.timedQuestChip} ${isWarning ? styles.timedQuestWarningChip : ''}`}>
+                <span className={styles.chipIcon}>⏳</span>
+                <span className={styles.chipVal} style={{ fontWeight: 'bold' }}>
+                  {def.title}: {timeStr} ({q.progress}/{target}m)
+                </span>
+              </div>
+            );
+          })}
         </div>
 
         <div className={styles.buttons}>
@@ -243,13 +321,29 @@ export default function HUD({ state, useMobileUI, onPause, onShop, onInventory, 
         </div>
       </div>
 
-      {/* Surface hints & Quest tracking */}
+      {/* Surface hints & Quest tracking & Progression guidance */}
       <div className={styles.lowerHud}>
         {atSurface ? (
           <div className={styles.surfaceHint}>
             <span style={{ color: 'var(--color-gold)' }}>DEPOT STATUS:</span> ACTIVE · <kbd>E</kbd> Sell Cargo · <kbd>B</kbd> Shop · <kbd>Q</kbd> Quests · <kbd>I</kbd> Bag
           </div>
+        ) : !atSurface && (player.upgrades.market_uplink ?? 0) > 0 ? (
+          <div className={styles.surfaceHint} style={{ color: '#60a5fa' }}>
+            <span style={{ color: '#60a5fa', fontWeight: 'bold' }}>UPLINK STATUS:</span> ACTIVE · <kbd>E</kbd> Sell Cargo Anywhere
+          </div>
         ) : null}
+
+        {/* Desktop Guidances */}
+        {showArtifactGuidance && (
+          <div className={styles.guidanceAlert}>
+            <span>📡 SCANNER LOG:</span> {artifactGuidanceText}
+          </div>
+        )}
+        {showTerminalGuidance && (
+          <div className={styles.terminalAlert}>
+            <span>🛰️ TELEMETRY OVERLINK:</span> Return to the Ancient Terminal on the surface.
+          </div>
+        )}
 
         {/* Permanent bonuses row */}
         {player.permanentBonuses.length > 0 && (

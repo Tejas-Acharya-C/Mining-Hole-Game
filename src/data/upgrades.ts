@@ -56,15 +56,15 @@ export const UPGRADE_DEFS: Record<UpgradeId, UpgradeDef> = {
     unlockDepth: 15,
   },
   teleport: {
-    id: 'teleport', label: 'Teleporter', icon: '✨',
-    description: 'Gain 2 teleport charges per level. Teleport to surface instantly.',
-    maxLevel: 3, baseCost: 1800, costMultiplier: 4.0, category: 'special',
+    id: 'teleport', label: 'Teleporter Charge', icon: '✨',
+    description: 'Consumable. Instantly teleports you to the surface from anywhere. Max 5 charges.',
+    maxLevel: 5, baseCost: 1200, costMultiplier: 1.0, category: 'special',
     unlockDepth: 50,
   },
   artifact_sense: {
-    id: 'artifact_sense', label: 'Artifact Sense', icon: '🗺',
-    description: 'Compass points toward the buried artifact while you search deeper.',
-    maxLevel: 1, baseCost: 1800, costMultiplier: 1, category: 'special',
+    id: 'artifact_sense', label: 'Discovery Scanner', icon: '🗺',
+    description: 'Tuned sensors point toward progression targets. Higher levels detect deeper objectives.',
+    maxLevel: 6, baseCost: 1200, costMultiplier: 2.0, category: 'special',
     unlockDepth: 80,
   },
   reinforced_picks: {
@@ -72,6 +72,12 @@ export const UPGRADE_DEFS: Record<UpgradeId, UpgradeDef> = {
     description: 'Reduces energy cost per dig by 1 per level.',
     maxLevel: 4, baseCost: 200, costMultiplier: 2.8, category: 'combat',
     unlockDepth: 10,
+  },
+  market_uplink: {
+    id: 'market_uplink', label: 'Portable Market Uplink', icon: '📶',
+    description: 'Allows remote selling of ores from the backpack anywhere.',
+    maxLevel: 1, baseCost: 2000, costMultiplier: 1.0, category: 'special',
+    unlockDepth: 40,
   },
 };
 
@@ -90,7 +96,7 @@ export function maxEnergy(level: number): number {
 
 /** Energy regen per second. */
 export function energyRegen(level: number): number {
-  return 3 + level * 2;
+  return 6 + level * 3;
 }
 
 /** Inventory capacity. */

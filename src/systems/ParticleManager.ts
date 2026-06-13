@@ -82,12 +82,53 @@ export class ParticleManager {
       sizeMin: 2, sizeMax: 4, gravity: 60, fade: 2.5 });
   }
 
-  /** Emit dig debris. Count scaled by quality. */
-  emitDigDebris(x: number, y: number, color: string, hard: boolean, quality: 'low'|'medium'|'high' = 'medium'): void {
-    const base = quality === 'low' ? 2 : quality === 'high' ? 10 : (hard ? 8 : 4);
-    this.emit({ kind: 'dirt', x, y, color, count: base,
-      speedMin: 1.5, speedMax: hard ? 4 : 2.5,
-      gravity: 250, fade: 2.0, lifeMin: 0.4, lifeMax: 0.8 });
+  /** Emit dig debris. Count scaled by quality, block hardness, and tool power. */
+  emitDigDebris(x: number, y: number, color: string, hardness: number, shovelLv: number, quality: 'low'|'medium'|'high' = 'medium'): void {
+    const qualityMult = quality === 'low' ? 0.5 : quality === 'high' ? 1.5 : 1.0;
+    
+    // Scale count by tool level and block hardness
+    const baseCount = Math.floor((4 + hardness * 2.2 + shovelLv * 1.2) * qualityMult);
+    const count = Math.max(2, Math.min(22, baseCount));
+    
+    const speedMin = 1.5 + shovelLv * 0.15;
+    const speedMax = 2.5 + hardness * 0.45 + shovelLv * 0.35;
+    const sizeMin = 1.5;
+    const sizeMax = 3.5 + hardness * 0.5;
+
+    this.emit({ 
+      kind: 'dirt', 
+      x, y, 
+      color, 
+      count,
+      speedMin, 
+      speedMax,
+      sizeMin,
+      sizeMax,
+      gravity: 250, 
+      fade: 2.0, 
+      lifeMin: 0.4, 
+      lifeMax: 0.8 
+    });
+  }
+
+  /** Emit critical hit spark burst. */
+  emitCritSparks(x: number, y: number, color: string, quality: 'low'|'medium'|'high' = 'medium'): void {
+    const qualityMult = quality === 'low' ? 0.5 : quality === 'high' ? 1.5 : 1.0;
+    const count = Math.floor(14 * qualityMult);
+    this.emit({
+      kind: 'spark',
+      x, y,
+      color, // Match target block color
+      count,
+      speedMin: 2.5,
+      speedMax: 6.0,
+      sizeMin: 2,
+      sizeMax: 5,
+      gravity: 120,
+      fade: 2.2,
+      lifeMin: 0.5,
+      lifeMax: 1.0
+    });
   }
 
   /** Emit treasure glow burst. */
@@ -95,6 +136,30 @@ export class ParticleManager {
     this.emit({ kind: 'treasure', x, y, color: '#ffd700', count: 10,
       speedMin: 1, speedMax: 3, sizeMin: 3, sizeMax: 7,
       gravity: -20, fade: 1.2, lifeMin: 0.8, lifeMax: 1.2 });
+  }
+
+  /** Emit multicolored celebration sparks. */
+  emitCelebration(x: number, y: number, quality: 'low'|'medium'|'high' = 'medium'): void {
+    const qualityMult = quality === 'low' ? 0.5 : quality === 'high' ? 1.5 : 1.0;
+    const count = Math.floor(20 * qualityMult);
+    const colors = ['#fbbf24', '#f97316', '#10b981', '#3b82f6', '#a855f7', '#ec4899'];
+    for (let i = 0; i < count; i++) {
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      this.emit({
+        kind: 'spark',
+        x, y: y - 10,
+        color,
+        count: 1,
+        speedMin: 1.5,
+        speedMax: 4.5,
+        sizeMin: 2,
+        sizeMax: 5,
+        gravity: 80,
+        fade: 1.6,
+        lifeMin: 0.6,
+        lifeMax: 1.3
+      });
+    }
   }
 
   /** Tick all active particles */

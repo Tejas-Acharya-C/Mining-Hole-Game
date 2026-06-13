@@ -21,7 +21,11 @@ export {
   updateQuestProgress,
   useTeleport,
   tickBiomeTransition,
+  triggerDiscoveryAlert,
   interactAncientTerminal,
   interactResonanceStabilizer,
+  triggerEnding,
+  tryCollectItem,
   tickHazards,
+  startNewExpedition,
 } from './GameManager';

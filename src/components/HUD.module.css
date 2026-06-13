@@ -246,7 +246,124 @@
   50% { box-shadow: inset 0 0 35px rgba(244, 63, 94, 0.35); }
 }
 
-/* ── Mobile Responsive HUD Overrides ── */
+.detailsFooter {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #64748b;
+  font-family: var(--font-tech);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 6px;
+}
+
+.timedQuestChip {
+  border: 1px solid rgba(168, 85, 247, 0.45) !important;
+  background: rgba(168, 85, 247, 0.12) !important;
+  color: #e9d5ff !important;
+  animation: pulsePurple 2s infinite ease-in-out;
+}
+
+@keyframes pulsePurple {
+  0%, 100% { box-shadow: 0 0 4px rgba(168, 85, 247, 0.2); }
+  50% { box-shadow: 0 0 10px rgba(168, 85, 247, 0.5); }
+}
+
+.timedQuestWarningChip {
+  border: 1px solid rgba(239, 68, 68, 0.6) !important;
+  background: rgba(239, 68, 68, 0.22) !important;
+  color: #fca5a5 !important;
+  animation: pulseRedFlash 0.8s infinite ease-in-out;
+}
+
+@keyframes pulseRedFlash {
+  0%, 100% { box-shadow: 0 0 4px rgba(239, 68, 68, 0.2); opacity: 0.85; }
+  50% { box-shadow: 0 0 14px rgba(239, 68, 68, 0.7); opacity: 1; }
+}
+
+.timedQuestMobileRow {
+  background: rgba(168, 85, 247, 0.12);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  color: #e9d5ff;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-tech);
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+}
+
+.warningText {
+  background: rgba(239, 68, 68, 0.2) !important;
+  border-color: rgba(239, 68, 68, 0.5) !important;
+  color: #fca5a5 !important;
+  animation: mobileFlashRed 1s infinite alternate;
+}
+
+@keyframes mobileFlashRed {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.02); }
+}
+
+.artifactGuidanceMobileRow {
+  background: rgba(168, 85, 247, 0.08);
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  color: #d8b4fe;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 10.5px;
+  font-weight: 700;
+  font-family: var(--font-tech);
+  margin-top: 4px;
+  text-align: center;
+}
+
+.terminalGuidanceMobileRow {
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  color: #93c5fd;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 10.5px;
+  font-weight: 700;
+  font-family: var(--font-tech);
+  margin-top: 4px;
+  text-align: center;
+}
+
+.guidanceAlert {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #d8b4fe;
+  background: rgba(168, 85, 247, 0.08);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 6px;
+  padding: 4px 12px;
+  margin-top: 5px;
+  font-family: var(--font-tech);
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.terminalAlert {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 6px;
+  padding: 4px 12px;
+  margin-top: 5px;
+  font-family: var(--font-tech);
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
 
 .mobileHud {
   padding: calc(8px + env(safe-area-inset-top, 0px)) calc(12px + env(safe-area-inset-right, 0px)) 6px calc(12px + env(safe-area-inset-left, 0px)) !important;

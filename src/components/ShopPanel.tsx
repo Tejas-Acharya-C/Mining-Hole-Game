@@ -2,6 +2,7 @@ import type { GameState, UpgradeId } from '../types';
 import { UPGRADE_DEFS, upgradeCost } from '../data/upgrades';
 import { playerDepth } from '../systems/GameManager';
 import { isTouchCapable } from '../utils/device';
+import { getUpgradeStatComparison } from '../utils/upgradeDisplay';
 import styles from './ShopPanel.module.css';
 
 interface Props {
@@ -14,7 +15,7 @@ const UPGRADE_ORDER: UpgradeId[] = [
   'shovel', 'backpack', 'battery', 'lantern', 'boots',
   'reinforced_picks', 'critical_chance', 'drill',
   'ore_detector', 'scanner',
-  'teleport', 'jetpack', 'artifact_sense',
+  'teleport', 'market_uplink', 'jetpack', 'artifact_sense',
 ];
 
 const CATEGORY_COLORS = {
@@ -76,11 +77,18 @@ export default function ShopPanel({ state, onBuy, onClose }: Props) {
                     </span>
                   </div>
                   <p className={styles.cardDesc}>{locked ? `🔒 Unlocks at depth ${def.unlockDepth}m` : def.description}</p>
+                  {!locked && !maxed && (
+                    <div className={styles.statComparison}>
+                      📈 {getUpgradeStatComparison(id, level)}
+                    </div>
+                  )}
                   <div className={styles.levelBar}>
                     {Array.from({ length: def.maxLevel }).map((_, i) => (
                       <div key={i} className={`${styles.pip} ${i < level ? styles.pipFilled : ''}`} />
                     ))}
-                    <span className={styles.levelLabel}>Lv {level}/{def.maxLevel}</span>
+                    <span className={styles.levelLabel}>
+                      {id === 'teleport' ? `Charges: ${level}/${def.maxLevel}` : `Lv ${level}/${def.maxLevel}`}
+                    </span>
                   </div>
                 </div>
                 <div className={styles.buyCol}>

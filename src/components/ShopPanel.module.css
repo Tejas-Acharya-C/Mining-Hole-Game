@@ -121,6 +121,18 @@
 }
 
 .cardDesc { font-size: 11px; color: #71717a; line-height: 1.35; margin-bottom: 6px; }
+.statComparison {
+  font-family: var(--font-tech);
+  font-size: 10px;
+  color: var(--color-cyan);
+  margin-bottom: 8px;
+  background: rgba(6, 182, 212, 0.05);
+  border: 1px dashed rgba(6, 182, 212, 0.2);
+  padding: 4px 8px;
+  border-radius: 6px;
+  display: inline-block;
+  letter-spacing: 0.5px;
+}
 
 .levelBar { display: flex; align-items: center; gap: 4px; }
 .pip {

@@ -31,6 +31,20 @@ export default function StatisticsPanel({ state, onClose }: Props) {
         </div>
 
         <div className={styles.content}>
+          {/* Prestige & Rebirth */}
+          <Section title="Expedition & Rebirth Diagnostics">
+            <Stat label="Active Expedition Number" val={String(state.prestigeData?.expeditionCount ?? state.prestigeCount ?? 0)} />
+            <Stat label="Discovered Endings"       val={state.prestigeData?.completedEndings?.length ? state.prestigeData.completedEndings.map((e: string) => {
+              if (e === 'standard') return 'Restoration';
+              if (e === 'secret') return 'Ascension';
+              if (e === 'completionist') return 'Voidbound';
+              return e;
+            }).join(', ') : 'None'} />
+            <Stat label="Ore Sale Value Bonus"     val={`+${Math.round((state.prestigeData?.bonuses.oreValueBonus ?? 0) * 100)}%`} />
+            <Stat label="Max Energy Bonus"         val={`+${state.prestigeData?.bonuses.maxEnergyBonus ?? 0} energy`} />
+            <Stat label="Cargo Slot Bonus"         val={`+${state.prestigeData?.bonuses.inventoryBonus ?? 0} slot(s)`} />
+          </Section>
+
           {/* Mining */}
           <Section title="Subterranean Operations">
             <Stat label="Total Chunks Dug"        val={statistics.blocksDug.toLocaleString()} />

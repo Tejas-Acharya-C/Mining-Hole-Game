@@ -6,6 +6,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.0.1] — 2026-06-12
+
+### Added
+- Professional README with gameplay loop, tech stack, badges, and contributing section
+- `docs/screenshots/` guide for README and social preview assets
+- GitHub release notes template (`docs/GITHUB_RELEASE_v1.0.1.md`)
+
+### Changed
+- Page title and favicon link in `index.html`
+- Repository documentation aligned with v1.0.0 gameplay (150 tests, guidance UI, mobile support)
+
+### Fixed
+- Quest panel no longer implies manual “claim” step for completed quests
+- Removed playtest/debug overlay files and temporary dev scripts from the repository
+
+---
+
 ## [1.0.0] — 2026-06-12
 
 ### Added

@@ -108,6 +108,7 @@ export const QUEST_DEFS: Record<QuestId, QuestDef> = {
     description: 'Reach depth 50 within 5 minutes of starting.',
     objective: { type: 'depth', depth: 50 },
     reward: { money: 800 },
+    timeLimit: 300,
   },
   q_no_surface_run: {
     id: 'q_no_surface_run',

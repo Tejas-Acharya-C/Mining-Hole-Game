@@ -58,7 +58,6 @@ export const TILE_ACCENT: Partial<Record<TileKind, string>> = {
   permafrost:    '#c8eeff',
   magma_rock:    '#ff6622',
   void_stone:    '#6622cc',
-  ancient_brick: '#c8a870',
   chest:         '#ffe066',
   energy_node:   '#88ffcc',
   ancient_terminal: '#60a5fa',

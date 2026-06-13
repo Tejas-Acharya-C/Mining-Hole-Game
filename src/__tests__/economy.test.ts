@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { createInitialState, sellInventory, buyUpgrade } from '../systems/GameManager.testable';
+import { createInitialState, sellInventory, buyUpgrade, useTeleport, tryMove, consumeEnergyCell } from '../systems/GameManager.testable';
 import { upgradeCost, shovelDamage, maxEnergy, inventoryCapacity, lightRadius } from '../data/upgrades';
 import { ITEM_DEFS } from '../data/items';
+import { WorldManager } from '../systems/WorldManager';
+import { SURFACE_TILE_ROW, WORLD_WIDTH_CHUNKS } from '../data/tiles';
 
 // ── Upgrade formulas ──────────────────────────────────────────────────────────
 
@@ -194,8 +196,89 @@ describe('buyUpgrade', () => {
 
   it('increments upgradesPurchased statistic', () => {
     const state = createInitialState(42);
-    state.player.money = 10000;
+    state.player.money = 1000;
     buyUpgrade(state, 'shovel');
     expect(state.statistics.upgradesPurchased).toBe(1);
+  });
+});
+
+describe('Rebalanced economy and systems', () => {
+  it('remote selling fails underground without uplink', () => {
+    const state = createInitialState(42);
+    state.player.y = 50; // Deep underground
+    state.player.upgrades.market_uplink = 0;
+    state.player.inventory = [{ itemId: 'coal', qty: 5 }];
+    const earned = sellInventory(state);
+    expect(earned).toBe(0);
+    expect(state.player.inventory.length).toBe(1);
+  });
+
+  it('remote selling succeeds underground with uplink', () => {
+    const state = createInitialState(42);
+    state.player.y = 50; // Deep underground
+    state.player.upgrades.market_uplink = 1;
+    state.player.inventory = [{ itemId: 'coal', qty: 5 }];
+    const expected = ITEM_DEFS.coal.sellValue * 5;
+    const earned = sellInventory(state);
+    expect(earned).toBe(expected);
+    expect(state.player.inventory.length).toBe(0);
+  });
+
+  it('selling succeeds at surface without uplink', () => {
+    const state = createInitialState(42);
+    state.player.y = 4; // Surface
+    state.player.upgrades.market_uplink = 0;
+    state.player.inventory = [{ itemId: 'coal', qty: 5 }];
+    const expected = ITEM_DEFS.coal.sellValue * 5;
+    const earned = sellInventory(state);
+    expect(earned).toBe(expected);
+    expect(state.player.inventory.length).toBe(0);
+  });
+
+  it('energy cell restores 80 energy', () => {
+    const state = createInitialState(42);
+    const mockPm: any = { emit: () => {} };
+    state.player.inventory = [{ itemId: 'energy_cell', qty: 1 }];
+    state.player.maxEnergy = 100;
+    state.player.energy = 10;
+    consumeEnergyCell(state, mockPm);
+    expect(state.player.energy).toBe(90);
+  });
+
+  it('surfacing recharges energy to max', () => {
+    const state = createInitialState(42);
+    const wm = new WorldManager(42, state.chunks);
+    for (let cx = 0; cx < WORLD_WIDTH_CHUNKS; cx++) {
+      wm.getChunk(cx, 0);
+      wm.getChunk(cx, 1);
+      wm.getChunk(cx, 2);
+    }
+    // Clear path upward to the surface
+    for (let r = SURFACE_TILE_ROW; r <= 20; r++) {
+      wm.setTile(r, state.player.x, { kind: 'air', hp: 0, maxHp: 0, revealed: true });
+    }
+    state.player.y = 20;
+    state.player.energy = 5;
+    state.player.upgrades.jetpack = 1; // Bypass wall climb requirements
+    tryMove(state, wm, 0, -(20 - SURFACE_TILE_ROW));
+    expect(state.player.y).toBe(SURFACE_TILE_ROW);
+    expect(state.player.energy).toBe(state.player.maxEnergy);
+  });
+
+  it('teleporting consumes a charge and recharges energy', () => {
+    const state = createInitialState(42);
+    const wm = new WorldManager(42, state.chunks);
+    for (let cx = 0; cx < WORLD_WIDTH_CHUNKS; cx++) {
+      wm.getChunk(cx, 0);
+      wm.getChunk(cx, 1);
+    }
+    state.player.teleportCharges = 2;
+    state.player.upgrades.teleport = 2;
+    state.player.energy = 10;
+    const result = useTeleport(state, wm);
+    expect(result).toBe(true);
+    expect(state.player.teleportCharges).toBe(1);
+    expect(state.player.upgrades.teleport).toBe(1);
+    expect(state.player.energy).toBe(state.player.maxEnergy);
   });
 });

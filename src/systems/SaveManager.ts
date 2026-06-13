@@ -93,9 +93,12 @@ export class SaveManager {
       artifactActivated: state.artifactActivated,
       facilityUnlocked: state.facilityUnlocked,
       prestigeCount: state.prestigeCount,
+      prestigeData: state.prestigeData,
       unlockedEnding: state.unlockedEnding,
       chosenSeed: state.chosenSeed,
       activeModifiers: state.activeModifiers,
+      tutorialComplete: state.tutorialComplete,
+      prestigeHintSeen: state.prestigeHintSeen,
     };
   }
 
@@ -143,9 +146,13 @@ export class SaveManager {
       shovel: 0, backpack: 0, battery: 0, lantern: 0, boots: 0,
       drill: 0, jetpack: 0, scanner: 0, critical_chance: 0,
       ore_detector: 0, teleport: 0, artifact_sense: 0, reinforced_picks: 0,
+      market_uplink: 0,
     };
     const upgrades = { ...defaultUpgrades, ...p.upgrades };
     delete (upgrades as any).auto_collect;
+
+    const teleportChargesVal = p.teleportCharges !== undefined ? Math.min(5, p.teleportCharges) : Math.min(5, upgrades.teleport ?? 0);
+    upgrades.teleport = teleportChargesVal;
 
     const achievements = Object.keys(ACHIEVEMENT_DEFS).map(id => {
       const existing = data.achievements?.find(a => a.id === id);
@@ -166,6 +173,20 @@ export class SaveManager {
       };
     });
 
+    let prestigeData = data.prestigeData;
+    if (!prestigeData) {
+      const count = data.prestigeCount ?? 0;
+      prestigeData = {
+        expeditionCount: count,
+        completedEndings: count > 0 ? ['standard'] : [],
+        bonuses: {
+          oreValueBonus: count * 0.05,
+          maxEnergyBonus: 0,
+          inventoryBonus: 0,
+        }
+      };
+    }
+
     const state: GameState = {
       screen: 'playing',
       mode: data.mode ?? 'normal',
@@ -179,7 +200,7 @@ export class SaveManager {
         upgrades: upgrades as Record<UpgradeId, number>,
         deepestDepth: p.deepestDepth,
         facing: p.facing ?? 'right',
-        teleportCharges: p.teleportCharges ?? 0,
+        teleportCharges: teleportChargesVal,
         shakeAmount: 0,
         permanentBonuses: p.permanentBonuses ?? [],
         surfacedThisTrip: p.surfacedThisTrip ?? true,
@@ -208,10 +229,13 @@ export class SaveManager {
       activeMilestonePopup: null,
       artifactActivated: data.artifactActivated ?? false,
       facilityUnlocked: data.facilityUnlocked ?? false,
-      prestigeCount: data.prestigeCount ?? 0,
+      prestigeCount: prestigeData.expeditionCount,
+      prestigeData,
       unlockedEnding: data.unlockedEnding,
       chosenSeed: data.chosenSeed,
       activeModifiers: data.activeModifiers ?? [],
+      tutorialComplete: data.tutorialComplete ?? false,
+      prestigeHintSeen: data.prestigeHintSeen ?? false,
       // New gameplay fields — defaults on load
       activeEvents: [],
       eventCooldown: 30,
